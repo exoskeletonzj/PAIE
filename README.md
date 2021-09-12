@@ -39,5 +39,13 @@ ckpts
       └── facebook official files ...
 ```
 
+# Train and evaluate the model
+After setting the data and pretrained checkpoints, simply run script with 
+```bash
+sh scripts/train_ace.sh
+sh scripts/train_rams.sh
+s
+```
+
 > In this release, we only contain ```PAIE``` standard model
 
