@@ -44,7 +44,7 @@ After setting the data and pretrained checkpoints, simply run script with
 ```bash
 sh scripts/train_ace.sh
 sh scripts/train_rams.sh
-s
+sh scripts/train_wikievent.sh
 ```
 
 > In this release, we only contain ```PAIE``` standard model
