@@ -74,7 +74,7 @@ def eval_score_std_span(features, dset_type):
         new_tok_index_to_old_tok_index = _new_tok_id2old_tok_id(feature.old_tok_to_new_tok_index)
         
         # NOTE deal with missing aligned ids
-        if dset_type=='eeqa':
+        if dset_type=='ace_eeqa':
             offset=0 # since eeqa annotation do not contain full text but partial text, although offset is provided
         else:
             offset = feature.event_trigger[2]
@@ -285,7 +285,7 @@ def eval_score_std_span_full_metrics(features, dset_type):
         new_tok_index_to_old_tok_index = _new_tok_id2old_tok_id(feature.old_tok_to_new_tok_index)
         
         # NOTE deal with missing aligned ids
-        if dset_type=='eeqa':
+        if dset_type=='ace_eeqa':
             offset=0 # since eeqa annotation do not contain full text but partial text, although offset is provided
         else:
             offset = feature.event_trigger[2]
