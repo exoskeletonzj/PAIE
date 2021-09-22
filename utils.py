@@ -182,55 +182,53 @@ def show_results(features, output_file, metainfo):
                             f.write("Arg {} dismatched: Pred: {} ({},{})\tGt: {} ({},{})\n".format(arg_role, pred_text, pred_list[idx][0], pred_list[idx][1], "__ No answer __", -1, -1))
 
 
-def get_best_index(feature, start_logit, end_logit, max_span_length, max_span_num):
+def get_maxtrix_value(X):
+    """
+    input: batch of matrices. [B, M, N]
+    output: indexes of argmax for each matrix in batch. [B, 2]
+    """
+    t1 = time.time()
+    col_max, col_max_loc = X.max(dim=-1)
+    _, row_max_loc = col_max.max(dim=-1)
+    t2 = time.time()
+    cal_time = (t2-t1)
 
-    th = start_logit[0] + end_logit[0]
-    answer_span_list = []
-    context_length = len(feature.old_tok_to_new_tok_index)
-    cal_time, index_time, cmp_time = 0, 0, 0
+    row_index = row_max_loc
+    col_index = col_max_loc[torch.arange(row_max_loc.size(0)), row_index]
 
-    for start in range(context_length):
-        for end in range(start+1, min(context_length, start+max_span_length+1)):
-            t1 = time.time()
-            start_index = feature.old_tok_to_new_tok_index[start][0] # use start token idx
-            end_index = feature.old_tok_to_new_tok_index[end-1][1] 
-            t2 = time.time()
-            index_time += (t2-t1)
+    return torch.stack((row_index, col_index)).T, cal_time
 
-            t1 = time.time()
-            score = start_logit[start_index] + end_logit[end_index]
-            answer_span = (start_index, end_index, score)
-            t2 = time.time()
-            cal_time += (t2-t1)
 
-            t1 = time.time()
-            if score > th:
-                answer_span_list.append(answer_span)
-            t2 = time.time()
-            cmp_time += (t2-t1)
+def get_best_indexes(features, feature_id_list, start_logit_list, end_logit_list, args):
+    t1 = time.time()
+    start_logits = torch.stack(tuple(start_logit_list)).unsqueeze(-1)         # [B, M, 1]
+    end_logits = torch.stack(tuple(end_logit_list)).unsqueeze(1)              # [B, 1, M]
+    scores = (start_logits + end_logits).float()
+    t2 = time.time()
+    score_time = t2 - t1
+
+    def generate_mask(feature):
+        mask = torch.zeros((args.max_enc_seq_length, args.max_enc_seq_length), dtype=float, device=args.device)
+        context_length = len(feature.old_tok_to_new_tok_index)
+        for start in range(context_length):
+            start_index = feature.old_tok_to_new_tok_index[start][0]
+            end_index_list = [feature.old_tok_to_new_tok_index[end-1][1] for end in range(start+1, min(context_length, start+args.max_span_length+1))]
+            mask[start_index, end_index_list] = 1.0
+        mask[0][0] = 1.0 
+        return torch.log(mask).float().unsqueeze(0)
     
-    if not answer_span_list:
-        answer_span_list.append((0, 0, th))
-    return filter_spans(answer_span_list, max_span_num), index_time, cal_time, cmp_time
+    t1 = time.time()
+    candidate_masks = {feature_id:generate_mask(features[feature_id]) for feature_id in set(feature_id_list)}
+    masks = torch.cat([candidate_masks[feature_id] for feature_id in feature_id_list], dim=0)
 
-def filter_spans(candidate_span_list, max_span_num):
-    candidate_span_list = sorted(candidate_span_list, key=lambda x:x[2], reverse=True)
-    candidate_span_list = [(candidate_span[0], candidate_span[1]) for candidate_span in candidate_span_list]
+    t2 = time.time()
+    mask_time = t2-t1
+    masked_scores = scores + masks
+    max_locs, cal_time = get_maxtrix_value(masked_scores)
+    max_locs = [tuple(a) for a in max_locs]
 
-    def is_intersect(span_1, span_2):
-        return False if min(span_1[1], span_2[1]) < max(span_1[0], span_2[0]) else True
+    return max_locs, cal_time, mask_time, score_time
 
-    if len(candidate_span_list) == 1:
-        answer_span_list = candidate_span_list
-    else:
-        answer_span_list = []
-        while candidate_span_list and len(answer_span_list)<max_span_num:
-            selected_span = candidate_span_list[0]
-            answer_span_list.append(selected_span)
-            candidate_span_list = candidate_span_list[1:]  
-
-            candidate_span_list = [candidate_span for candidate_span in candidate_span_list if not is_intersect(candidate_span, selected_span)]
-    return answer_span_list
 
 def check_tensor(tensor, var_name):
     print("******Check*****")

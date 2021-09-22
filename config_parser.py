@@ -20,6 +20,7 @@ def get_args_parser():
     parser.add_argument("--max_dec_seq_length", default=20, type=int)
     parser.add_argument("--max_prompt_seq_length", default=64, type=int)
     parser.add_argument("--batch_size", default=4, type=int)
+    parser.add_argument("--infer_batch_size", default=32, type=int)
     parser.add_argument("--learning_rate", default=5e-5, type=float)
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1)
     parser.add_argument("--weight_decay", default=0.01, type=float)

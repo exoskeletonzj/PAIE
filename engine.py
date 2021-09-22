@@ -13,7 +13,7 @@ import sys
 from models import build_model
 from processors import build_processor
 
-from utils import set_seed, get_best_index, eval_score_std_span, show_results
+from utils import set_seed, get_best_indexes, eval_score_std_span, show_results
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +140,10 @@ def train(args, model, processor):
 
 
 def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
+    pred_list = []
+    feature_id_list, role_list = [], []
+    full_start_logit_list, full_end_logit_list = [], []
+
     for batch in dataloader:
         model.eval()
         with torch.no_grad(): 
@@ -173,17 +177,24 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
             feature.set_gt()
             for arg_role in batch[-3][i]:
                 [start_logits_list, end_logits_list] = predictions[arg_role] # NOTE base model should also has these kind of output
-
-                # calculate loss
-                predicted_spans = list()
+                feature.pred_dict[arg_role] = list()
                 for (start_logit, end_logit) in zip(start_logits_list, end_logits_list):
-                    answer_span_pred_list, _, _, _ = \
-                        get_best_index(feature, start_logit, end_logit, args.max_span_length, args.max_span_num)
-                    predicted_spans.extend(answer_span_pred_list)
-                
-                feature.pred_dict[arg_role] = predicted_spans
+                    feature_id_list.append(feature_id)
+                    role_list.append(arg_role)
+                    full_start_logit_list.append(start_logit)
+                    full_end_logit_list.append(end_logit)
 
-    perf_span, perf_text = eval_score_std_span(features,args.dataset_type)
+    for s in range(0, len(full_start_logit_list), args.infer_batch_size):
+        sub_max_locs, cal_time, mask_time, score_time = get_best_indexes(features, feature_id_list[s:s+args.infer_batch_size], \
+            full_start_logit_list[s:s+args.infer_batch_size], full_end_logit_list[s:s+args.infer_batch_size], args)
+        pred_list.extend(sub_max_locs)
+
+    for (pred, feature_id, role) in zip(pred_list, feature_id_list, role_list):
+        features[feature_id].pred_dict[role].append(\
+            (pred[0].item(), pred[1].item())
+        )
+    
+    perf_span, perf_text = eval_score_std_span(features, args.dataset_type)
     logging.info('SPAN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_span[3], perf_span[0], perf_span[1], perf_span[2]))
     logging.info('TEXT-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_text[3], perf_text[0], perf_text[1], perf_text[2]))
     return perf_span, perf_text
