@@ -132,6 +132,10 @@ class ArgumentExtractionDataset(Dataset):
         else:
             dec_arg_query_ids = None
             dec_arg_query_mask_ids = None
+            dec_arg_start_positions = None
+            dec_arg_end_positions = None
+            start_position_ids = None
+            end_position_ids = None
 
         target_info = [f.target_info for f in batch]
         old_tok_to_new_tok_index = [f.old_tok_to_new_tok_index for f in batch]
