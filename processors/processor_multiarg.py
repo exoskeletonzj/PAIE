@@ -1,7 +1,9 @@
 import os
 import re
+import ipdb
 import torch
 import pickle
+import numpy as np
 
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 
@@ -13,6 +15,7 @@ _PREDEFINED_QUERY_TEMPLATE = {
     "arg_event": "Argument: {arg:}. Event: {event_type:} ",
     "argonly": "{arg:}",
 }
+
 
 class InputFeatures(object):
     """A single set of features of data."""
@@ -42,6 +45,10 @@ class InputFeatures(object):
         if arg_quries is not None:
             self.dec_arg_query_ids = [v[0] for k,v in arg_quries.items()]
             self.dec_arg_query_masks = [v[1] for k,v in arg_quries.items()]
+            self.dec_arg_start_positions = [v[2] for k,v in arg_quries.items()]
+            self.dec_arg_end_positions = [v[3] for k,v in arg_quries.items()]
+            self.start_position_ids = [v['span_s'] for k,v in target_info.items()]
+            self.end_position_ids = [v['span_e'] for k,v in target_info.items()]
         else:
             self.dec_arg_query_ids = None
             self.dec_arg_query_masks = None
@@ -57,10 +64,20 @@ class InputFeatures(object):
     def init_pred(self):
         self.pred_dict = dict()
     
-    def set_gt(self):
+    def set_gt(self, model_type):
         self.gt_dict = dict()
-        for k,v in self.target_info.items():
-            self.gt_dict[k] = [(s,e) for (s,e) in zip(v["span_s"], v["span_e"])]
+        if model_type == 'base':
+            for k,v in self.target_info.items():
+                # ipdb.set_trace()
+                span_s = list(np.where(v["span_s"])[0])
+                span_e = list(np.where(v["span_e"])[0])
+                self.gt_dict[k] = [(s,e) for (s,e) in zip(span_s, span_e)]
+        elif "paie" in model_type:
+            for k,v in self.target_info.items():
+                self.gt_dict[k] = [(s,e) for (s,e) in zip(v["span_s"], v["span_e"])]
+        else:
+            assert(0==1)
+
 
     def __str__(self):
         return self.__repr__()
@@ -108,6 +125,10 @@ class ArgumentExtractionDataset(Dataset):
         if batch[0].dec_arg_query_ids is not None:
             dec_arg_query_ids = [torch.LongTensor(f.dec_arg_query_ids) for f in batch]
             dec_arg_query_mask_ids = [torch.LongTensor(f.dec_arg_query_masks) for f in batch]
+            dec_arg_start_positions = [torch.LongTensor(f.dec_arg_start_positions) for f in batch]
+            dec_arg_end_positions = [torch.LongTensor(f.dec_arg_end_positions) for f in batch]
+            start_position_ids = [torch.FloatTensor(f.start_position_ids) for f in batch]
+            end_position_ids = [torch.FloatTensor(f.end_position_ids) for f in batch]
         else:
             dec_arg_query_ids = None
             dec_arg_query_mask_ids = None
@@ -120,10 +141,12 @@ class ArgumentExtractionDataset(Dataset):
         arg_lists = [f.arg_list for f in batch ]
 
         return enc_input_ids, enc_mask_ids, \
-               dec_arg_query_ids, dec_arg_query_mask_ids,\
+                dec_arg_query_ids, dec_arg_query_mask_ids,\
                 dec_prompt_ids, dec_prompt_mask_ids,\
                 target_info, old_tok_to_new_tok_index, arg_joint_prompt, arg_lists, \
-                example_idx, feature_idx
+                example_idx, feature_idx, \
+                dec_arg_start_positions, dec_arg_end_positions, \
+                start_position_ids, end_position_ids
 
 
 class MultiargProcessor(DSET_processor):
@@ -161,7 +184,13 @@ class MultiargProcessor(DSET_processor):
         while len(dec_input_ids) < self.args.max_dec_seq_length:
             dec_input_ids.append(self.args.pad_token)
             dec_mask_ids.append(self.args.pad_mask_token)
-        return dec_input_ids, dec_mask_ids
+
+        matching_result = re.search(arg, dec_text)
+        char_idx_s, char_idx_e = matching_result.span(); char_idx_e -= 1
+        tok_prompt_s = dec.char_to_token(char_idx_s)
+        tok_prompt_e = dec.char_to_token(char_idx_e) + 1
+
+        return dec_input_ids, dec_mask_ids, tok_prompt_s, tok_prompt_e
 
     def convert_examples_to_features(self, examples):
         if self.prompt_query:
@@ -238,13 +267,14 @@ class MultiargProcessor(DSET_processor):
                 arg_query = None
                 prompt_slots = None
                 arg_target = {
-                        "text": list(),
-                        "span_s": list(),
-                        "span_e": list()
+                    "text": list(),
+                    "span_s": list(),
+                    "span_e": list()
                 }
 
                 if self.arg_query:
                     arg_query = self.create_dec_qury(arg, event_trigger[0], event_type)
+
                 if self.prompt_query:
                     prompt_slots = {
                         "tok_s":list(), "tok_e":list(),
@@ -266,12 +296,20 @@ class MultiargProcessor(DSET_processor):
                         event_arg_info = event_args[arg_idx]
                         answer_text = event_arg_info['text']; answer_texts.append(answer_text)
                         start_old, end_old = event_arg_info['start'], event_arg_info['end']
-                        start_position= old_tok_to_new_tok_index[start_old][0]; start_positions.append(start_position)
-                        end_position =old_tok_to_new_tok_index[end_old-1][1]; end_positions.append(end_position)
+                        start_position = old_tok_to_new_tok_index[start_old][0]; start_positions.append(start_position)
+                        end_position = old_tok_to_new_tok_index[end_old-1][1]; end_positions.append(end_position)
+
+                if self.arg_query:
+                    arg_target["span_s"] = [1 if i in start_positions else 0 for i in range(self.args.max_enc_seq_length)]
+                    arg_target["span_e"] = [1 if i in end_positions else 0 for i in range(self.args.max_enc_seq_length)]
+                    if sum(arg_target["span_s"])==0:
+                        arg_target["span_s"][0] = 1
+                        arg_target["span_e"][0] = 1
+                if self.prompt_query:
+                    arg_target["span_s"]= start_positions
+                    arg_target["span_e"] = end_positions
 
                 arg_target["text"] = answer_texts
-                arg_target["span_s"]= start_positions
-                arg_target["span_e"] = end_positions
                 arg_quries[arg] = arg_query
                 arg_joint_prompt[arg] = prompt_slots
                 target_info[arg] = arg_target

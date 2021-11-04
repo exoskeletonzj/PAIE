@@ -4,6 +4,7 @@ if os.environ.get('DEBUG', False): print('\033[92m'+'Running code in DEBUG mode'
 import os.path as osp
 import logging
 
+import ipdb
 import torch
 import torch.nn as nn
 from transformers import AdamW, get_linear_schedule_with_warmup
@@ -55,22 +56,26 @@ def train(args, model, processor):
             inputs = {
                 'enc_input_ids':  batch[0].to(args.device), 
                 'enc_mask_ids':   batch[1].to(args.device), 
-                'arg_list':       batch[-3],
-                'target_info':    batch[6], 
+                'arg_list':       batch[9],
             }
             if args.model_type == 'base' or args.model_type=="ensemble":
                 inputs.update({
-                'dec_arg_query_ids':      [item.to(args.device) for item in batch[2]], 
-                'dec_arg_query_mask_ids': [item.to(args.device) for item in batch[3]],
+                'decoder_prompt_ids_list':      [item.to(args.device) for item in batch[2]], 
+                'decoder_prompt_mask_list': [item.to(args.device) for item in batch[3]],
+                'decoder_prompt_start_positions_list': [item.to(args.device) for item in batch[12]],
+                'decoder_prompt_end_positions_list': [item.to(args.device) for item in batch[13]],
+                'start_position_ids': [item.to(args.device) for item in batch[14]],
+                'end_position_ids': [item.to(args.device) for item in batch[15]],
                 })
             if "paie" in args.model_type or args.model_type=="ensemble":
                 inputs.update({
                 'dec_prompt_ids':           batch[4].to(args.device),
                 'dec_prompt_mask_ids':      batch[5].to(args.device),
+                'target_info':              batch[6], 
                 'old_tok_to_new_tok_indexs':batch[7],
-                'arg_joint_prompts':        batch[8]
+                'arg_joint_prompts':        batch[8],
                 })
-            
+
             loss, _= model(**inputs)
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
@@ -150,20 +155,22 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
             inputs = {
                 'enc_input_ids':  batch[0].to(args.device), 
                 'enc_mask_ids':   batch[1].to(args.device), 
-                'arg_list':       batch[-3],
-                'target_info':    None, 
+                'arg_list':       batch[9],
             }
-            if args.model_type == 'base' or args.model_type=="ensemble":
+            if args.model_type == 'base':
                 inputs.update({
-                'dec_arg_query_ids':      [item.to(args.device) for item in batch[2]], 
-                'dec_arg_query_mask_ids': [item.to(args.device) for item in batch[3]],
+                    'decoder_prompt_ids_list':      [item.to(args.device) for item in batch[2]], 
+                    'decoder_prompt_mask_list': [item.to(args.device) for item in batch[3]],
+                    'decoder_prompt_start_positions_list': [item.to(args.device) for item in batch[12]],
+                    'decoder_prompt_end_positions_list': [item.to(args.device) for item in batch[13]],
                 })
-            if "paie" in args.model_type or args.model_type=="ensemble":
+            if "paie" in args.model_type:
                 inputs.update({
-                'dec_prompt_ids':           batch[4].to(args.device),
-                'dec_prompt_mask_ids':      batch[5].to(args.device),
-                'old_tok_to_new_tok_indexs':batch[7],
-                'arg_joint_prompts':        batch[8]
+                    'dec_prompt_ids':           batch[4].to(args.device),
+                    'dec_prompt_mask_ids':      batch[5].to(args.device),
+                    'old_tok_to_new_tok_indexs':batch[7],
+                    'arg_joint_prompts':        batch[8],
+                    'target_info':              None, 
                 })
 
             _, outputs_list = model(**inputs)
@@ -171,11 +178,11 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
         bs = len(batch[0])
         for i in range(bs):
             predictions = outputs_list[i]
-            feature_id = batch[-1][i].item()
+            feature_id = batch[11][i].item()
             feature = features[feature_id]
             feature.init_pred()
-            feature.set_gt()
-            for arg_role in batch[-3][i]:
+            feature.set_gt(args.model_type)
+            for arg_role in batch[9][i]:
                 [start_logits_list, end_logits_list] = predictions[arg_role] # NOTE base model should also has these kind of output
                 feature.pred_dict[arg_role] = list()
                 for (start_logit, end_logit) in zip(start_logits_list, end_logits_list):

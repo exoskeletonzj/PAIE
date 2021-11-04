@@ -95,7 +95,6 @@ class PAIE(BartPretrainedModel):
         for i, (context_output, decoder_prompt_output, arg_joint_prompt, old_tok_to_new_tok_index) in \
             enumerate(zip(context_outputs, decoder_prompt_outputs, arg_joint_prompts, old_tok_to_new_tok_indexs)):
             
-            slice_length = sum(enc_mask_ids[i])
             batch_loss = list()
             cnt = 0
             
@@ -117,9 +116,9 @@ class PAIE(BartPretrainedModel):
 
                     start_logits = torch.bmm(context_output.unsqueeze(0), start_query).squeeze()  
                     end_logits = torch.bmm(context_output.unsqueeze(0), end_query).squeeze()
-        
-                    start_logits_list.append(start_logits[:slice_length])
-                    end_logits_list.append(end_logits[:slice_length])
+                    
+                    start_logits_list.append(start_logits)
+                    end_logits_list.append(end_logits)
                     
                 output[arg_role] = [start_logits_list, end_logits_list]
 

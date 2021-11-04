@@ -1,8 +1,10 @@
 from transformers import BartConfig, BartTokenizerFast
 from .paie import PAIE
+from .single_prompt import BartSingleArg
 
 MODEL_CLASSES = {
     'paie': (BartConfig, PAIE, BartTokenizerFast),
+    'base': (BartConfig, BartSingleArg, BartTokenizerFast)
 }
 
 def build_model(args, model_type):
