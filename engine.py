@@ -14,7 +14,7 @@ import sys
 from models import build_model
 from processors import build_processor
 
-from utils import set_seed, get_best_indexes, eval_score_std_span, show_results
+from utils import set_seed, get_best_indexes, eval_score_std_span, show_results, get_best_index
 
 logger = logging.getLogger(__name__)
 
@@ -191,15 +191,20 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
                     full_start_logit_list.append(start_logit)
                     full_end_logit_list.append(end_logit)
 
-    for s in range(0, len(full_start_logit_list), args.infer_batch_size):
-        sub_max_locs, cal_time, mask_time, score_time = get_best_indexes(features, feature_id_list[s:s+args.infer_batch_size], \
-            full_start_logit_list[s:s+args.infer_batch_size], full_end_logit_list[s:s+args.infer_batch_size], args)
-        pred_list.extend(sub_max_locs)
-
-    for (pred, feature_id, role) in zip(pred_list, feature_id_list, role_list):
-        features[feature_id].pred_dict[role].append(\
-            (pred[0].item(), pred[1].item())
-        )
+    if "paie" in args.model_type:
+        for s in range(0, len(full_start_logit_list), args.infer_batch_size):
+            sub_max_locs, cal_time, mask_time, score_time = get_best_indexes(features, feature_id_list[s:s+args.infer_batch_size], \
+                full_start_logit_list[s:s+args.infer_batch_size], full_end_logit_list[s:s+args.infer_batch_size], args)
+            pred_list.extend(sub_max_locs)
+        for (pred, feature_id, role) in zip(pred_list, feature_id_list, role_list):
+            features[feature_id].pred_dict[role].append(\
+                (pred[0].item(), pred[1].item())
+            )
+    else:
+        for feature_id, role, start_logit, end_logit in zip(feature_id_list, role_list, full_start_logit_list, full_end_logit_list):
+            feature = features[feature_id]
+            answer_span_pred_list = get_best_index(feature, start_logit, end_logit, args.max_span_length, args.max_span_num)
+            feature.pred_dict[role] = answer_span_pred_list
     
     perf_span, perf_text = eval_score_std_span(features, args.dataset_type)
     logging.info('SPAN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_span[3], perf_span[0], perf_span[1], perf_span[2]))

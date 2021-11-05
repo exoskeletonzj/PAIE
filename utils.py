@@ -230,6 +230,47 @@ def get_best_indexes(features, feature_id_list, start_logit_list, end_logit_list
     return max_locs, cal_time, mask_time, score_time
 
 
+def get_best_index(feature, start_logit, end_logit, max_span_length, max_span_num):
+    th = start_logit[0] + end_logit[0]
+    answer_span_list = []
+    context_length = len(feature.old_tok_to_new_tok_index)
+
+    for start in range(context_length):
+        for end in range(start+1, min(context_length, start+max_span_length+1)):
+            start_index = feature.old_tok_to_new_tok_index[start][0] # use start token idx
+            end_index = feature.old_tok_to_new_tok_index[end-1][1] 
+
+            score = start_logit[start_index] + end_logit[end_index]
+            answer_span = (start_index, end_index, score)
+
+            if score > th:
+                answer_span_list.append(answer_span)
+    
+    if not answer_span_list:
+        answer_span_list.append((0, 0, th))
+    return filter_spans(answer_span_list, max_span_num)
+
+
+def filter_spans(candidate_span_list, max_span_num):
+    candidate_span_list = sorted(candidate_span_list, key=lambda x:x[2], reverse=True)
+    candidate_span_list = [(candidate_span[0], candidate_span[1]) for candidate_span in candidate_span_list]
+
+    def is_intersect(span_1, span_2):
+        return False if min(span_1[1], span_2[1]) < max(span_1[0], span_2[0]) else True
+
+    if len(candidate_span_list) == 1:
+        answer_span_list = candidate_span_list
+    else:
+        answer_span_list = []
+        while candidate_span_list and len(answer_span_list)<max_span_num:
+            selected_span = candidate_span_list[0]
+            answer_span_list.append(selected_span)
+            candidate_span_list = candidate_span_list[1:]  
+
+            candidate_span_list = [candidate_span for candidate_span in candidate_span_list if not is_intersect(candidate_span, selected_span)]
+    return answer_span_list
+
+
 def check_tensor(tensor, var_name):
     print("******Check*****")
     print("tensor_name: {}".format(var_name))

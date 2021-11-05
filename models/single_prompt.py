@@ -78,12 +78,9 @@ class BartSingleArg(BartPretrainedModel):
 
             # ipdb.set_trace()
             output = dict()
-            try:
-                for j, arg_role in enumerate(arg_list[i]):
-                    start_logits_list, end_logits_list = [start_logits[j]], [end_logits[j]]
-                    output[arg_role] = [start_logits_list, end_logits_list]
-            except:
-                ipdb.set_trace()
+            for j, arg_role in enumerate(arg_list[i]):
+                start_logits_list, end_logits_list = [start_logits[j]], [end_logits[j]]
+                output[arg_role] = [start_logits_list, end_logits_list]
             logit_lists.append(output)
 
         if total_loss:
