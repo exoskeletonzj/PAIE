@@ -33,6 +33,7 @@ def get_args_parser():
     parser.add_argument('--logging_steps', default=100, type=int)
     parser.add_argument('--eval_steps', default=200, type=int)
     parser.add_argument('--seed', default=42, type=int)
+    parser.add_argument('--th_delta', default=.0, type=float)
     parser.add_argument('--use_cache', default=False, action="store_true")
 
     # Window size for document level dset (rams)

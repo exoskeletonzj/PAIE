@@ -203,7 +203,7 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
     else:
         for feature_id, role, start_logit, end_logit in zip(feature_id_list, role_list, full_start_logit_list, full_end_logit_list):
             feature = features[feature_id]
-            answer_span_pred_list = get_best_index(feature, start_logit, end_logit, args.max_span_length, args.max_span_num)
+            answer_span_pred_list = get_best_index(feature, start_logit, end_logit, args.max_span_length, args.max_span_num, args.th_delta)
             feature.pred_dict[role] = answer_span_pred_list
     
     perf_span, perf_text = eval_score_std_span(features, args.dataset_type)

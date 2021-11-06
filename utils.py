@@ -230,7 +230,7 @@ def get_best_indexes(features, feature_id_list, start_logit_list, end_logit_list
     return max_locs, cal_time, mask_time, score_time
 
 
-def get_best_index(feature, start_logit, end_logit, max_span_length, max_span_num):
+def get_best_index(feature, start_logit, end_logit, max_span_length, max_span_num, delta):
     th = start_logit[0] + end_logit[0]
     answer_span_list = []
     context_length = len(feature.old_tok_to_new_tok_index)
@@ -243,7 +243,7 @@ def get_best_index(feature, start_logit, end_logit, max_span_length, max_span_nu
             score = start_logit[start_index] + end_logit[end_index]
             answer_span = (start_index, end_index, score)
 
-            if score > th:
+            if score > (th+delta):
                 answer_span_list.append(answer_span)
     
     if not answer_span_list:
