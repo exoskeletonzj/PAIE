@@ -7,9 +7,8 @@ def get_args_parser():
 
     parser.add_argument("--dataset_type", type=str)
     parser.add_argument("--cache_path", default='./data/cached_multiarg_new', type=str)
-    parser.add_argument("--template_path", default='./data/description_queries_rams.csv', type=str)
-    parser.add_argument("--encoder_template_path", default='./data/RAMS_relation_template.csv', type=str)
-    parser.add_argument("--prompt_path", default='./data/prompts_rams_full.csv', type=str)
+    parser.add_argument("--template_path", default='./data/dset_meta/description_rams.csv', type=str)
+    parser.add_argument("--prompt_path", default='./data/prompts/prompts_rams_full.csv', type=str)
 
     parser.add_argument("--output_dir", default='./outputs_res', type=str)
     
@@ -47,12 +46,8 @@ def get_args_parser():
                         choices=["ori", "with_trigger_sp"],type=str)
     parser.add_argument('--query_template', default="arg_trigger", 
                         choices=["arg_trigger", "arg_event", "argonly", "arg_prompt"],type=str)
-    parser.add_argument('--encoder_template', default="no_encoder_template",
-                        choices=["no_encoder_template", "encoder_template"],type=str)
 
     # use start token or mean pooling to get query vector
-    parser.add_argument('--prompt_type', default="group",
-                        choices=["twin", "group"], type=str)
     parser.add_argument('--prompt_context', default="decoder",
                         choices=['encoder', 'decoder'], type=str)
       

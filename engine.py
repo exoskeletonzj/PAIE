@@ -58,7 +58,7 @@ def train(args, model, processor):
                 'enc_mask_ids':   batch[1].to(args.device), 
                 'arg_list':       batch[9],
             }
-            if args.model_type == 'base' or args.model_type=="ensemble":
+            if args.model_type == 'base':
                 inputs.update({
                 'decoder_prompt_ids_list':      [item.to(args.device) for item in batch[2]], 
                 'decoder_prompt_mask_list': [item.to(args.device) for item in batch[3]],
@@ -67,7 +67,7 @@ def train(args, model, processor):
                 'start_position_ids': [item.to(args.device) for item in batch[14]],
                 'end_position_ids': [item.to(args.device) for item in batch[15]],
                 })
-            if "paie" in args.model_type or args.model_type=="ensemble":
+            if "paie" in args.model_type:
                 inputs.update({
                 'dec_prompt_ids':           batch[4].to(args.device),
                 'dec_prompt_mask_ids':      batch[5].to(args.device),
@@ -114,20 +114,19 @@ def train(args, model, processor):
                 output_dir = os.path.join(args.output_dir, 'checkpoint')
                 os.makedirs(output_dir, exist_ok=True)
 
-                show_result = show_results
                 if test_f1 > best_f1_test:
                     best_f1_test = test_f1
-                    show_result(test_features, os.path.join(args.output_dir, f'best_test_results.log'),
+                    show_results(test_features, os.path.join(args.output_dir, f'best_test_results.log'),
                         {"test related best score": f"P: {test_p} R: {test_r} f1: {test_f1}", "global step": global_step}
                     )
 
                 if dev_f1 > best_f1_dev:
                     best_f1_dev = dev_f1
                     related_f1_test = test_f1
-                    show_result(test_features, os.path.join(args.output_dir, f'best_test_related_results.log'), 
+                    show_results(test_features, os.path.join(args.output_dir, f'best_test_related_results.log'), 
                         {"test related best score": f"P: {test_p} R: {test_r} f1: {test_f1}", "global step": global_step}
                     )
-                    show_result(dev_features, os.path.join(args.output_dir, f'best_dev_results.log'), 
+                    show_results(dev_features, os.path.join(args.output_dir, f'best_dev_results.log'), 
                         {"dev best score": f"P: {dev_p} R: {dev_r} f1: {dev_f1}", "global step": global_step}
                     )
                     model.save_pretrained(output_dir)
@@ -144,8 +143,7 @@ def train(args, model, processor):
     # tb_writer.close()
 
 
-def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
-    pred_list = []
+def calculate(args, model, features, dataloader):
     feature_id_list, role_list = [], []
     full_start_logit_list, full_end_logit_list = [], []
 
@@ -190,7 +188,14 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
                     role_list.append(arg_role)
                     full_start_logit_list.append(start_logit)
                     full_end_logit_list.append(end_logit)
+    
+    return feature_id_list, role_list, full_start_logit_list, full_end_logit_list
 
+
+def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
+    feature_id_list, role_list, full_start_logit_list, full_end_logit_list = calculate(args, model, features, dataloader)
+
+    pred_list = []
     if "paie" in args.model_type:
         for s in range(0, len(full_start_logit_list), args.infer_batch_size):
             sub_max_locs, cal_time, mask_time, score_time = get_best_indexes(features, feature_id_list[s:s+args.infer_batch_size], \

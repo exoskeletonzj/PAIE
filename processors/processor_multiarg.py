@@ -61,9 +61,11 @@ class InputFeatures(object):
         self.full_text=full_text
         self.arg_list = arg_list
 
+
     def init_pred(self):
         self.pred_dict = dict()
     
+
     def set_gt(self, model_type):
         self.gt_dict = dict()
         if model_type == 'base':
@@ -78,9 +80,6 @@ class InputFeatures(object):
         else:
             assert(0==1)
 
-
-    def __str__(self):
-        return self.__repr__()
 
     def __repr__(self):
         s = "" 
@@ -158,16 +157,18 @@ class MultiargProcessor(DSET_processor):
         super().__init__(args, tokenizer) 
         self.set_dec_input()
     
+
     def set_dec_input(self):
         self.arg_query=False
         self.prompt_query=False
-        if self.args.model_type == "base" or self.args.model_type == 'ensemble':
+        if self.args.model_type == "base":
             self.arg_query = True
-        elif "paie" in self.args.model_type or self.args.model_type == 'ensemble':
+        elif "paie" in self.args.model_type:
             self.prompt_query = True
         else:
             raise NotImplementedError(f"Unexpected setting {self.args.model_type}")
      
+
     def _read_prompt_group(self):
         with open(self.args.prompt_path) as f:
             lines = f.readlines()
@@ -178,6 +179,7 @@ class MultiargProcessor(DSET_processor):
             event_type, prompt = line.split(":")
             prompts[event_type] = prompt
         return prompts
+
 
     def create_dec_qury(self, arg, event_trigger, event_type):
         dec_text = _PREDEFINED_QUERY_TEMPLATE[self.args.query_template].format(arg=arg, trigger=event_trigger, event_type=event_type)
@@ -195,6 +197,7 @@ class MultiargProcessor(DSET_processor):
         tok_prompt_e = dec.char_to_token(char_idx_e) + 1
 
         return dec_input_ids, dec_mask_ids, tok_prompt_s, tok_prompt_e
+
 
     def convert_examples_to_features(self, examples):
         if self.prompt_query:
@@ -389,4 +392,3 @@ class MultiargProcessor(DSET_processor):
         dataloader = DataLoader(dataset, sampler=dataset_sampler, batch_size=self.args.batch_size, collate_fn=dataset.collate_fn)
 
         return examples, features, dataloader
-

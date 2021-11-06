@@ -15,6 +15,7 @@ def set_seed(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
+
 def hungarian_matcher(predicted_spans, target_spans):
     """
     Args:
@@ -27,6 +28,7 @@ def hungarian_matcher(predicted_spans, target_spans):
     cost_spans = torch.cdist(torch.FloatTensor(predicted_spans).unsqueeze(0), torch.FloatTensor(target_spans).unsqueeze(0), p=1)
     indices = linear_sum_assignment(cost_spans.squeeze(0)) 
     return [torch.as_tensor(indices[0], dtype=torch.int64), torch.as_tensor(indices[1], dtype=torch.int64)]
+
 
 def _normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace. (Squad Style) """
@@ -43,6 +45,7 @@ def _normalize_answer(s):
     s_normalized = white_space_fix(remove_articles(remove_punc(lower(s))))
     return s_normalized
 
+
 def _tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset):
     span = list(span)
     span[0] = min(span[0], max(new_tok_index_to_old_tok_index.keys()))
@@ -58,12 +61,23 @@ def _tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset):
         span_e+=1
     return (span_s, span_e)
 
+
 def _new_tok_id2old_tok_id(old_tok_to_new_tok_index):
     new_tok_index_to_old_tok_index = dict()
     for old_tok_id, (new_tok_id_s, new_tok_id_e) in enumerate(old_tok_to_new_tok_index):
         for j in range(new_tok_id_s, new_tok_id_e):
             new_tok_index_to_old_tok_index[j] = old_tok_id 
     return new_tok_index_to_old_tok_index
+
+
+def get_sentence_idx(first_word_locs, word_loc):
+    sent_idx = -1
+    for i, first_word_loc in enumerate(first_word_locs):
+        if word_loc>=first_word_loc:
+            sent_idx = i
+        else:
+            break
+    return sent_idx
 
 
 def eval_score_std_span(features, dset_type):
@@ -83,7 +97,7 @@ def eval_score_std_span(features, dset_type):
             pred_list=list(); gt_list = list()
             for span in feature.pred_dict[arg_role]:
                 if span != (0,0):
-                    pred_list.append(_tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset) )
+                    pred_list.append(_tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset))
             pred_list = list(set(pred_list))
 
             if arg_role in feature.gt_dict:
@@ -126,6 +140,7 @@ def eval_score_std_span(features, dset_type):
     f1_text = 2*recall_text*precision_text/(recall_text+precision_text) if (recall_text+precision_text)>1e-4 else .0
 
     return [recall, precision, f1, gt_num, pred_num, correct_num], [recall_text, precision_text, f1_text, gt_num, pred_num, correct_text]
+
 
 def show_results(features, output_file, metainfo):
     """ paie std show resuults """

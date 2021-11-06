@@ -1,6 +1,7 @@
 import os
 import csv
 import json
+import ipdb
 import jsonlines
 import torch
 import pickle
@@ -8,12 +9,12 @@ import pickle
 from itertools import chain
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 import copy                             
-
 import logging
 logger = logging.getLogger(__name__)
 
+
 class ACE_event:
-    def __init__(self, doc_id, sent_id, sent, event_type, event_trigger, event_args, full_text):
+    def __init__(self, doc_id, sent_id, sent, event_type, event_trigger, event_args, full_text, first_word_locs=None):
         self.doc_id = doc_id
         self.sent_id = sent_id
         self.sent = sent
@@ -22,6 +23,7 @@ class ACE_event:
         self.args = event_args
         
         self.full_text = full_text
+        self.first_word_locs = first_word_locs
 
 
     def __str__(self):
@@ -136,6 +138,7 @@ class DSET_processor:
 
         return template_dict, argument_dict
 
+
     def _create_example_eeqa(self, lines):
         examples = []
         for line in lines:
@@ -167,6 +170,7 @@ class DSET_processor:
         print("{} examples collected.".format(len(examples)))
         # ipdb.set_trace()
         return examples
+
     
     def _create_example_rams_full_doc(self, lines):
         # maximum doc length is 543 in train (max input ids 803), 394 in dev, 478 in test
@@ -179,7 +183,9 @@ class DSET_processor:
             
             events = line["evt_triggers"]
             text_tmp = []
+            first_word_locs = []
             for i, sent in enumerate(line["sentences"]):
+                first_word_locs.append(len(text_tmp))
                 text_tmp += sent
 
             full_text = copy.deepcopy(list(chain(*line['sentences'])))
@@ -196,7 +202,8 @@ class DSET_processor:
                 for arg_info in line["gold_evt_links"]:
                     if arg_info[0][0] == event[0] and arg_info[0][1] == event[1]:  # match trigger span    
                         evt_arg = dict()
-                        evt_arg['start'] = arg_info[1][0]; evt_arg['end'] = arg_info[1][1]+1
+                        evt_arg['start'] = arg_info[1][0]
+                        evt_arg['end'] = arg_info[1][1]+1
                         evt_arg['role'] = arg_info[2].split('arg', maxsplit=1)[-1][2:]
                         evt_arg['text'] = " ".join(text_tmp[evt_arg['start']:evt_arg['end']])
                         event_args.append(evt_arg)
@@ -204,13 +211,14 @@ class DSET_processor:
                 text=text_tmp
                 
                 if event_idx > 0:
-                    examples.append(ACE_event(doc_key+str(event_idx), None, text, event_type, event_trigger, event_args, full_text))
+                    examples.append(ACE_event(doc_key+str(event_idx), None, text, event_type, event_trigger, event_args, full_text, first_word_locs))
                 else:
-                    examples.append(ACE_event(doc_key, None, text, event_type, event_trigger, event_args, full_text))
+                    examples.append(ACE_event(doc_key, None, text, event_type, event_trigger, event_args, full_text, first_word_locs))
             
         print("{} examples collected.".format(len(examples)))
         return examples
-               
+
+
     def _create_example_rams(self, lines):
         # maximum doc length is 543 in train (max input ids 803), 394 in dev, 478 in test
         # too long, so we use a window to cut the sentences.
@@ -224,55 +232,65 @@ class DSET_processor:
                 continue
             doc_key = line["doc_key"]
             events = line["evt_triggers"]
-            assert(len(events)==1)
-            event = events[0]
 
             full_text = copy.deepcopy(list(chain(*line['sentences'])))
             cut_text = list(chain(*line['sentences']))
             sent_length = sum([len(sent) for sent in line['sentences']])
-                   
-            event_trigger = dict()
-            event_trigger['start'] = event[0]
-            event_trigger['end'] = event[1]+1
-            event_trigger['text'] = " ".join(full_text[event_trigger['start']:event_trigger['end']])
-            event_type = event[2][0][0]
 
-            offset, min_s, max_e = 0, 0, W+1
-            event_trigger['offset'] = offset
-            if sent_length > W+1:
-                if event_trigger['end'] <= W//2:     # trigger word is located at the front of the sents
-                    cut_text = full_text[:(W+1)]
-                else:   # trigger word is located at the latter of the sents
-                    offset = sent_length - (W+1)
-                    min_s += offset
-                    max_e += offset
-                    event_trigger['start'] -= offset
-                    event_trigger['end'] -= offset 
-                    event_trigger['offset'] = offset
-                    cut_text = full_text[-(W+1):]
+            text_tmp = []
+            first_word_locs = []
+            for i, sent in enumerate(line["sentences"]):
+                first_word_locs.append(len(text_tmp))
+                text_tmp += sent
 
-            event_args = list()
-            for arg_info in line["gold_evt_links"]:
-                if arg_info[0][0] == event[0] and arg_info[0][1] == event[1]:  # match trigger span    
-                    all_args_num += 1
+            for event_idx, event in enumerate(events):                
+                event_trigger = dict()
+                event_trigger['start'] = event[0]
+                event_trigger['end'] = event[1]+1
+                event_trigger['text'] = " ".join(full_text[event_trigger['start']:event_trigger['end']])
+                event_type = event[2][0][0]
 
-                    evt_arg = dict()
-                    evt_arg['start'] = arg_info[1][0]
-                    evt_arg['end'] = arg_info[1][1]+1
-                    evt_arg['text'] = " ".join(full_text[evt_arg['start']:evt_arg['end']])
-                    evt_arg['role'] = arg_info[2].split('arg', maxsplit=1)[-1][2:]
-                    if evt_arg['start']<min_s or evt_arg['end']>max_e:
-                        invalid_args_num += 1
-                    else:
-                        evt_arg['start'] -= offset
-                        evt_arg['end'] -= offset 
-                        event_args.append(evt_arg)
-            examples.append(ACE_event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text))
+                offset, min_s, max_e = 0, 0, W+1
+                event_trigger['offset'] = offset
+                if sent_length > W+1:
+                    if event_trigger['end'] <= W//2:     # trigger word is located at the front of the sents
+                        cut_text = full_text[:(W+1)]
+                    else:   # trigger word is located at the latter of the sents
+                        offset = sent_length - (W+1)
+                        min_s += offset
+                        max_e += offset
+                        event_trigger['start'] -= offset
+                        event_trigger['end'] -= offset 
+                        event_trigger['offset'] = offset
+                        cut_text = full_text[-(W+1):]
+
+                event_args = list()
+                for arg_info in line["gold_evt_links"]:
+                    if arg_info[0][0] == event[0] and arg_info[0][1] == event[1]:  # match trigger span    
+                        all_args_num += 1
+
+                        evt_arg = dict()
+                        evt_arg['start'] = arg_info[1][0]
+                        evt_arg['end'] = arg_info[1][1]+1
+                        evt_arg['text'] = " ".join(full_text[evt_arg['start']:evt_arg['end']])
+                        evt_arg['role'] = arg_info[2].split('arg', maxsplit=1)[-1][2:]
+                        if evt_arg['start']<min_s or evt_arg['end']>max_e:
+                            invalid_args_num += 1
+                        else:
+                            evt_arg['start'] -= offset
+                            evt_arg['end'] -= offset 
+                            event_args.append(evt_arg)
+
+                if event_idx > 0:
+                    examples.append(ACE_event(doc_key+str(event_idx), None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
+                else:
+                    examples.append(ACE_event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
             
         discount_factor = 1-invalid_args_num/all_args_num
         print("{} examples collected.".format(len(examples)))
         print("Discount factor:{}".format(discount_factor))
         return examples
+
 
     def _create_example_oneie(self, lines):
         examples = []
@@ -300,41 +318,6 @@ class DSET_processor:
         print("{} examples collected.".format(len(examples)))
         return examples
     
-    def _create_example_wikievent_full_doc(self, lines):
-        invalid_args_num, all_args_num = 0, 0
-
-        examples = []
-        for i, line in enumerate(lines):
-            entity_dict = {entity['id']:entity for entity in line['entity_mentions']}
-            events = line["event_mentions"]
-            if not events:
-                continue
-            doc_key = line["doc_id"]
-            full_text = line['tokens']
-
-            for event in events:
-                event_type = event['event_type']
-                event_trigger = event['trigger']
-
-                event_trigger['offset'] = 0
-                        
-                event_args = list()
-                for arg_info in event['arguments']:
-                    all_args_num += 1
-
-                    evt_arg = dict()
-                    arg_entity = entity_dict[arg_info['entity_id']]
-                    evt_arg['start'] = arg_entity['start']
-                    evt_arg['end'] = arg_entity['end']
-                    evt_arg['text'] = arg_info['text']
-                    evt_arg['role'] = arg_info['role']
-                    event_args.append(evt_arg)
-                examples.append(ACE_event(doc_key, None, full_text, event_type, event_trigger, event_args, full_text))
-
-        discount_factor = 1-invalid_args_num/all_args_num
-        logger.info("{} examples collected.".format(len(examples)))
-        logger.info("Discount factor:{}".format(discount_factor))
-        return examples
 
     def _create_example_wikievent(self, lines):
         W = self.args.window_size
@@ -350,6 +333,12 @@ class DSET_processor:
             doc_key = line["doc_id"]
             full_text = line['tokens']
             sent_length = len(full_text)
+
+            curr_loc = 0
+            first_word_locs = []
+            for i, sent in enumerate(line["sentences"]):
+                first_word_locs.append(curr_loc)
+                curr_loc += len(sent[0])
 
             for event in events:
                 event_type = event['event_type']
@@ -393,12 +382,13 @@ class DSET_processor:
                         evt_arg['start'] -= offset
                         evt_arg['end'] -= offset 
                         event_args.append(evt_arg)
-                examples.append(ACE_event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text))
+                examples.append(ACE_event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
 
         discount_factor = 1-invalid_args_num/all_args_num
         logger.info("{} examples collected.".format(len(examples)))
         logger.info("Discount factor:{}".format(discount_factor))
         return examples
+
 
     def create_example(self, file_path):
         if self.args.dataset_type=='ace_eeqa':
@@ -419,6 +409,7 @@ class DSET_processor:
         else:
             raise NotImplementedError()
     
+
     def convert_examples_to_features(self, examples):
         features = []
         for (example_idx, example) in enumerate(examples):
