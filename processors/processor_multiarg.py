@@ -286,7 +286,9 @@ class MultiargProcessor(DSET_processor):
                     prompt_slots = {
                         "tok_s":list(), "tok_e":list(),
                     }
-                    for matching_result in re.finditer(arg, dec_prompt_text):
+                    
+                    for matching_result in re.finditer(r'\b'+re.escape(arg)+r'\b', dec_prompt_text.split('.')[0]): # Using this more accurate regular expression might further improve rams results
+                    # for matching_result in re.finditer(r'\b'+re.escape(arg)+r'\b', dec_prompt_text): # Using this more accurate regular expression might further improve rams results
                         char_idx_s, char_idx_e = matching_result.span(); char_idx_e -= 1
                         tok_prompt_s = dec_prompt.char_to_token(char_idx_s)
                         tok_prompt_e = dec_prompt.char_to_token(char_idx_e) + 1
