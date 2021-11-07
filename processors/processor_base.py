@@ -434,7 +434,7 @@ class DSET_processor:
             enc_input_ids, enc_mask_ids = enc["input_ids"], enc["attention_mask"]
             enc_tokens = self.tokenizer.convert_ids_to_tokens(enc_input_ids)  
             while len(enc_input_ids) < self.args.max_enc_seq_length:
-                enc_input_ids.append(self.args.pad_token)
+                enc_input_ids.append(self.tokenizer.pad_token_id)
                 enc_mask_ids.append(self.args.pad_mask_token)
             
             for old_tok_idx, char_idx in enumerate(old_tok_to_char_index):
@@ -448,7 +448,7 @@ class DSET_processor:
                 dec_input_ids, dec_mask_ids = dec["input_ids"], dec["attention_mask"]
                 dec_tokens = self.tokenizer.convert_ids_to_tokens(dec_input_ids) 
                 while len(dec_input_ids) < self.args.max_dec_seq_length:
-                    dec_input_ids.append(self.args.pad_token)
+                    dec_input_ids.append(self.tokenizer.pad_token_id)
                     dec_mask_ids.append(self.args.pad_mask_token)
         
                 start_position, end_position, answer_text = None, None, None

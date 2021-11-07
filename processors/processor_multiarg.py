@@ -188,7 +188,7 @@ class MultiargProcessor(DSET_processor):
         dec_input_ids, dec_mask_ids = dec["input_ids"], dec["attention_mask"]
 
         while len(dec_input_ids) < self.args.max_dec_seq_length:
-            dec_input_ids.append(self.args.pad_token)
+            dec_input_ids.append(self.tokenizer.pad_token_id)
             dec_mask_ids.append(self.args.pad_mask_token)
 
         matching_result = re.search(arg, dec_text)
@@ -240,7 +240,7 @@ class MultiargProcessor(DSET_processor):
             if len(enc_input_ids)> self.args.max_enc_seq_length:
                 raise ValueError(f"Please increase max_enc_seq_length above {len(enc_input_ids)}")
             while len(enc_input_ids) < self.args.max_enc_seq_length:
-                enc_input_ids.append(self.args.pad_token)
+                enc_input_ids.append(self.tokenizer.pad_token_id)
                 enc_mask_ids.append(self.args.pad_mask_token)
             
             for old_tok_idx, (char_idx_s, char_idx_e) in enumerate(old_tok_to_char_index):
@@ -257,7 +257,7 @@ class MultiargProcessor(DSET_processor):
                     dec_prompt_ids, dec_prompt_mask_ids = dec_prompt["input_ids"], dec_prompt["attention_mask"]
                     assert len(dec_prompt_ids)<=self.args.max_prompt_seq_length, f"\n{example}\n{arg_list}\n{dec_prompt_text}"
                     while len(dec_prompt_ids) < self.args.max_prompt_seq_length:
-                        dec_prompt_ids.append(self.args.pad_token)
+                        dec_prompt_ids.append(self.tokenizer.pad_token_id)
                         dec_prompt_mask_ids.append(self.args.pad_mask_token)
                 else:
                     raise ValueError(f"no prompt provided for event: {event_type}")
@@ -349,7 +349,7 @@ class MultiargProcessor(DSET_processor):
 
     def load_and_cache_examples(self, file_path, cache_path):
         if not os.path.exists(cache_path) or os.environ.get("DEBUG", False) or not self.args.use_cache:
-            print('\033[92m'+'not loading cache examples'+'\033[0m')
+            # print('\033[92m'+'not loading cache examples'+'\033[0m')
             examples = self.create_example(file_path)
             pickle.dump(examples, open(cache_path, 'wb'))
         else:
@@ -359,7 +359,7 @@ class MultiargProcessor(DSET_processor):
     
     def load_and_cache_features(self, examples, cache_path):
         if not os.path.exists(cache_path) or os.environ.get("DEBUG", False) or not self.args.use_cache:
-            print('\033[92m'+'not loading cache features'+'\033[0m')
+            # print('\033[92m'+'not loading cache features'+'\033[0m')
             features = self.convert_examples_to_features(examples)
             pickle.dump(features, open(cache_path, 'wb'))
         else:

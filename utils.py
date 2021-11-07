@@ -16,6 +16,18 @@ def set_seed(args):
     torch.manual_seed(args.seed)
 
 
+def read_prompt_group(prompt_path):
+    with open(prompt_path) as f:
+        lines = f.readlines()
+    prompts = dict()
+    for line in lines:
+        if not line:
+            continue
+        event_type, prompt = line.split(":")
+        prompts[event_type] = prompt
+    return prompts
+
+
 def hungarian_matcher(predicted_spans, target_spans):
     """
     Args:

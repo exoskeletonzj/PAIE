@@ -30,7 +30,7 @@ def get_args_parser():
     parser.add_argument("--max_steps", default=10000, type=int)
     parser.add_argument("--warmup_steps", default=0.1, type=float)
     parser.add_argument('--logging_steps', default=100, type=int)
-    parser.add_argument('--eval_steps', default=200, type=int)
+    parser.add_argument('--eval_steps', default=500, type=int)
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--th_delta', default=.0, type=float)
     parser.add_argument('--use_cache', default=False, action="store_true")
@@ -39,12 +39,12 @@ def get_args_parser():
     parser.add_argument("--window_size", default=250, type=int)
 
     # paie setting
-    parser.add_argument('--matching_method_train', default="naive", choices=["naive", "max", 'accurate'], type=str)
+    parser.add_argument('--matching_method_train', default="max", choices=["naive", "max", 'accurate'], type=str)
 
     # input text setting
     parser.add_argument('--context_template', default="with_trigger_sp", 
                         choices=["ori", "with_trigger_sp"],type=str)
-    parser.add_argument('--query_template', default="arg_trigger", 
+    parser.add_argument('--query_template', default="arg_prompt", 
                         choices=["arg_trigger", "arg_event", "argonly", "arg_prompt"],type=str)
 
     # use start token or mean pooling to get query vector
