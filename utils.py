@@ -210,6 +210,90 @@ def eval_score_per_role(features, dset_type, output_file):
             f.write('-------------------------------------------------------------------------\n')
 
 
+def eval_score_per_argnum(examples, features, output_file):
+
+    def get_split_feature(feature, valid_argnum):
+        def f(x):
+            if x<=1:
+                return 1
+            elif x>=4:
+                return 4
+            else:
+                return x
+        split_feature = deepcopy(feature)
+        for role in split_feature.target_info:
+            arg_num = 0
+            for idx, span in enumerate(split_feature.gt_dict[role]):
+                if span==(0, 0): 
+                    continue
+                arg_num += 1
+            if f(arg_num) != valid_argnum:
+                split_feature.gt_dict[role] = []
+                split_feature.pred_dict[role] = []
+        return split_feature
+
+    example_dict = {example.doc_id:example for example in examples}
+    with open(output_file, 'w') as f:
+        for argnum in [1, 2, 3, 4]:
+            split_features = []
+            for feature in tqdm(features):
+                split_features.append(get_split_feature(feature, argnum))
+            perf_span, perf_text = eval_score_std_span(split_features, args.dataset_type)
+            f.write("ARGNUM:{} ({})\n".format(argnum, perf_span[3]))
+            f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
+            f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('-------------------------------------------------------------------------\n')
+
+
+def eval_score_per_dist(examples, features, output_file):
+
+    def get_split_feature(feature, first_word_locs, valid_range):
+        if isinstance(valid_range, int):
+            valid_range = [valid_range]
+        split_feature = deepcopy(feature)
+
+        new_tok_index_to_old_tok_index = _new_tok_id2old_tok_id(feature.old_tok_to_new_tok_index)
+        offset = feature.event_trigger[2]
+
+        trigger_loc = get_sentence_idx(first_word_locs, feature.event_trigger[1][0])
+        for role in split_feature.target_info:
+            delete_idx_list = list()
+            for idx, span in enumerate(split_feature.pred_dict[role]):
+                if span==(0, 0): 
+                    continue
+                new_span = _tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset)
+                dist = get_sentence_idx(first_word_locs, new_span[0]) - trigger_loc
+                if dist not in valid_range:
+                    delete_idx_list.append(idx)
+            split_feature.pred_dict[role] = [v for idx, v in enumerate(split_feature.pred_dict[role]) if idx not in delete_idx_list]
+
+            delete_idx_list = list()
+            for idx, span in enumerate(split_feature.gt_dict[role]):
+                if span==(0, 0): 
+                    continue
+                new_span = _tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset)
+                dist = get_sentence_idx(first_word_locs, new_span[0]) - trigger_loc
+                if dist not in valid_range:
+                    delete_idx_list.append(idx)
+            split_feature.gt_dict[role] = [v for idx, v in enumerate(split_feature.gt_dict[role]) if idx not in delete_idx_list]
+
+        return split_feature
+
+    example_dict = {example.doc_id:example for example in examples}
+    with open(output_file, 'w') as f:
+        for dist in [-2, -1, 0, 1, 2]:
+            split_features = []
+            for feature in tqdm(features):
+                example = example_dict[feature.example_id]
+                first_word_locs = example.first_word_locs
+                split_features.append(get_split_feature(feature, first_word_locs, dist))
+            perf_span, perf_text = eval_score_std_span(split_features, args.dataset_type)
+            f.write("Dist:{} ({})\n".format(dist, perf_span[3]))
+            f.write('SPAN-EVAL: R {} P {} F {}'.format(perf_span[0], perf_span[1], perf_span[2]))
+            f.write('TEXT-EVAL: R {} P {} F {}'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('-------------------------------------------------------------------------\n')
+
+
 def show_results(features, output_file, metainfo):
     """ paie std show resuults """
     with open(output_file, 'w', encoding='utf-8') as f:

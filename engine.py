@@ -16,7 +16,7 @@ from models import build_model
 from processors import build_processor
 
 from utils import set_seed, get_best_indexes, get_best_index, count_time
-from utils import eval_score_std_span, eval_score_per_type, eval_score_per_role, show_results
+from utils import eval_score_std_span, eval_score_per_type, eval_score_per_role, eval_score_per_dist, eval_score_per_argnum, show_results
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +137,12 @@ def train(args, model, processor):
                     eval_score_per_role(test_original_features, args.dataset_type, 
                         os.path.join(args.output_dir, f'results_per_role.txt'), 
                     )
+                    eval_score_per_argnum(test_original_features, args.dataset_type, 
+                        os.path.join(args.output_dir, f'results_per_argnum.txt'), 
+                    )
+                    eval_score_per_dist(test_original_features, args.dataset_type, 
+                        os.path.join(args.output_dir, f'results_per_dist.txt'), 
+                    )
                     model.save_pretrained(output_dir)
 
                 tb_writer.add_scalar('best_f1_dev', best_f1_dev, global_step)
@@ -217,7 +223,8 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
             )
     else:
         for feature_id, role, start_logit, end_logit in zip(feature_id_list, role_list, full_start_logit_list, full_end_logit_list):
-            answer_span_pred_list = get_best_index(features[feature_id], start_logit, end_logit, args.max_span_length, args.max_span_num, args.th_delta)
+            feature = features[feature_id]
+            answer_span_pred_list = get_best_index(feature, start_logit, end_logit, args.max_span_length, args.max_span_num, args.th_delta)
             feature.pred_dict[role] = answer_span_pred_list
     
     original_features = copy.deepcopy(features)     # After eval_score, the span recorded in features will be changed. We want to keep the original value for further evaluation.
