@@ -26,9 +26,9 @@ def train(args, model, processor):
     logger.info("train dataloader generation")
     _, train_features, train_dataloader = processor.generate_dataloader('train')
     logger.info("dev dataloader generation")
-    _, dev_features, dev_dataloader = processor.generate_dataloader('dev')
+    dev_examples, dev_features, dev_dataloader = processor.generate_dataloader('dev')
     logger.info("test dataloader generation")
-    _, test_features, test_dataloader = processor.generate_dataloader('test')
+    test_examples, test_features, test_dataloader = processor.generate_dataloader('test')
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
@@ -103,7 +103,7 @@ def train(args, model, processor):
                 smooth_loss = .0
 
             if global_step % args.eval_steps == 0:
-                [dev_r, dev_p, dev_f1,_,_,_], [dev_r_text, dev_p_text, dev_f1_text,_,_,_], _ = \
+                [dev_r, dev_p, dev_f1,_,_,_], [dev_r_text, dev_p_text, dev_f1_text,_,_,_], dev_original_features = \
                     evaluate(args, model, dev_features, dev_dataloader, processor.tokenizer, set_type='dev')
                 [test_r, test_p, test_f1,_,_,_], [test_r_text, test_p_text, test_f1_text,_,_,_], test_original_features = \
                     evaluate(args, model, test_features, test_dataloader,  processor.tokenizer, set_type='test')
@@ -137,12 +137,20 @@ def train(args, model, processor):
                     eval_score_per_role(test_original_features, args.dataset_type, 
                         os.path.join(args.output_dir, f'results_per_role.txt'), 
                     )
-                    eval_score_per_argnum(test_original_features, args.dataset_type, 
-                        os.path.join(args.output_dir, f'results_per_argnum.txt'), 
-                    )
-                    eval_score_per_dist(test_original_features, args.dataset_type, 
-                        os.path.join(args.output_dir, f'results_per_dist.txt'), 
-                    )
+                    if args.dataset_type=='ace_eeqa':
+                        eval_score_per_argnum(dev_original_features, args.dataset_type, 
+                            os.path.join(args.output_dir, f'dev_results_per_argnum.txt'), 
+                        )
+                        eval_score_per_argnum(test_original_features, args.dataset_type, 
+                            os.path.join(args.output_dir, f'test_results_per_argnum.txt'), 
+                        )
+                    else:
+                        eval_score_per_dist(dev_original_features, dev_examples, args.dataset_type, 
+                            os.path.join(args.output_dir, f'dev_results_per_dist.txt'), 
+                        )
+                        eval_score_per_dist(test_original_features, test_examples, args.dataset_type, 
+                            os.path.join(args.output_dir, f'test_results_per_dist.txt'), 
+                        )
                     model.save_pretrained(output_dir)
 
                 tb_writer.add_scalar('best_f1_dev', best_f1_dev, global_step)
