@@ -5,6 +5,7 @@ import os.path as osp
 import logging
 
 import ipdb
+import copy
 import torch
 import torch.nn as nn
 from transformers import AdamW, get_linear_schedule_with_warmup
@@ -14,7 +15,8 @@ import sys
 from models import build_model
 from processors import build_processor
 
-from utils import set_seed, get_best_indexes, eval_score_std_span, show_results, get_best_index
+from utils import set_seed, get_best_indexes, get_best_index, count_time
+from utils import eval_score_std_span, eval_score_per_type, eval_score_per_role, show_results
 
 logger = logging.getLogger(__name__)
 
@@ -101,9 +103,9 @@ def train(args, model, processor):
                 smooth_loss = .0
 
             if global_step % args.eval_steps == 0:
-                [dev_r, dev_p, dev_f1,_,_,_], [dev_r_text, dev_p_text, dev_f1_text,_,_,_] = \
+                [dev_r, dev_p, dev_f1,_,_,_], [dev_r_text, dev_p_text, dev_f1_text,_,_,_], _ = \
                     evaluate(args, model, dev_features, dev_dataloader, processor.tokenizer, set_type='dev')
-                [test_r, test_p, test_f1,_,_,_], [test_r_text, test_p_text, test_f1_text,_,_,_] = \
+                [test_r, test_p, test_f1,_,_,_], [test_r_text, test_p_text, test_f1_text,_,_,_], test_original_features = \
                     evaluate(args, model, test_features, test_dataloader,  processor.tokenizer, set_type='test')
 
                 tb_writer.add_scalar('dev_f1', dev_f1, global_step)
@@ -129,6 +131,12 @@ def train(args, model, processor):
                     show_results(dev_features, os.path.join(args.output_dir, f'best_dev_results.log'), 
                         {"dev best score": f"P: {dev_p} R: {dev_r} f1: {dev_f1}", "global step": global_step}
                     )
+                    eval_score_per_type(test_original_features, args.dataset_type, 
+                        os.path.join(args.output_dir, f'results_per_type.txt'), 
+                    )
+                    eval_score_per_role(test_original_features, args.dataset_type, 
+                        os.path.join(args.output_dir, f'results_per_role.txt'), 
+                    )
                     model.save_pretrained(output_dir)
 
                 tb_writer.add_scalar('best_f1_dev', best_f1_dev, global_step)
@@ -143,6 +151,7 @@ def train(args, model, processor):
     # tb_writer.close()
 
 
+@count_time
 def calculate(args, model, features, dataloader):
     feature_id_list, role_list = [], []
     full_start_logit_list, full_end_logit_list = [], []
@@ -193,7 +202,8 @@ def calculate(args, model, features, dataloader):
 
 
 def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
-    feature_id_list, role_list, full_start_logit_list, full_end_logit_list = calculate(args, model, features, dataloader)
+    kwargs = {"args": args, "model": model, "features":features, "dataloader":dataloader}
+    feature_id_list, role_list, full_start_logit_list, full_end_logit_list = calculate(**kwargs)
 
     pred_list = []
     if "paie" in args.model_type:
@@ -207,14 +217,14 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
             )
     else:
         for feature_id, role, start_logit, end_logit in zip(feature_id_list, role_list, full_start_logit_list, full_end_logit_list):
-            feature = features[feature_id]
-            answer_span_pred_list = get_best_index(feature, start_logit, end_logit, args.max_span_length, args.max_span_num, args.th_delta)
+            answer_span_pred_list = get_best_index(features[feature_id], start_logit, end_logit, args.max_span_length, args.max_span_num, args.th_delta)
             feature.pred_dict[role] = answer_span_pred_list
     
+    original_features = copy.deepcopy(features)     # After eval_score, the span recorded in features will be changed. We want to keep the original value for further evaluation.
     perf_span, perf_text = eval_score_std_span(features, args.dataset_type)
     logging.info('SPAN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_span[3], perf_span[0], perf_span[1], perf_span[2]))
     logging.info('TEXT-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_text[3], perf_text[0], perf_text[1], perf_text[2]))
-    return perf_span, perf_text
+    return perf_span, perf_text, original_features
 
 
 def main():

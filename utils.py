@@ -8,6 +8,10 @@ import copy
 import re
 import string
 import spacy
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def set_seed(args):
@@ -26,6 +30,16 @@ def read_prompt_group(prompt_path):
         event_type, prompt = line.split(":")
         prompts[event_type] = prompt
     return prompts
+
+
+def count_time(f):
+    def run(**kw):
+        time1 = time.time()
+        result = f(**kw)
+        time2 = time.time()
+        logger.info("The time of executing {}: {}".format(f.__name__, time2-time1))
+        return result
+    return run
 
 
 def hungarian_matcher(predicted_spans, target_spans):
@@ -152,6 +166,48 @@ def eval_score_std_span(features, dset_type):
     f1_text = 2*recall_text*precision_text/(recall_text+precision_text) if (recall_text+precision_text)>1e-4 else .0
 
     return [recall, precision, f1, gt_num, pred_num, correct_num], [recall_text, precision_text, f1_text, gt_num, pred_num, correct_text]
+
+
+def eval_score_per_type(features, dset_type, output_file):
+    feature_per_type_dict = dict()
+    for feature in features:
+        event_type = feature.event_type
+        split_feature = copy.deepcopy(feature)
+        if event_type not in feature_per_type_dict:
+            feature_per_type_dict[event_type] = list()
+        feature_per_type_dict[event_type].append(split_feature)
+    
+    with open(output_file, 'w') as f:
+        for event_type in sorted(feature_per_type_dict.keys()):
+            perf_span, perf_text = eval_score_std_span(feature_per_type_dict[event_type], dset_type)
+            f.write('{} : ({})\n'.format(event_type, perf_span[3]))
+            f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
+            f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('-------------------------------------------------------------------------\n')
+
+
+def eval_score_per_role(features, dset_type, output_file):
+    feature_per_role_dict = dict()
+    # Enumerate all possible roles first
+    for feature in features:
+        for role in feature.target_info:
+            if role not in feature_per_role_dict:
+                feature_per_role_dict[role] = list()
+            split_feature = copy.deepcopy(feature)
+            new_pred_dict = {r:split_feature.pred_dict[r] if r==role else list() for r in split_feature.pred_dict}
+            split_feature.pred_dict = new_pred_dict
+            new_gt_dict = {r:split_feature.gt_dict[r] if r==role else list() for r in split_feature.gt_dict}
+            split_feature.gt_dict = new_gt_dict
+                
+            feature_per_role_dict[role].append(split_feature)
+
+    with open(output_file, 'w') as f:
+        for role_type in sorted(feature_per_role_dict.keys()):
+            perf_span, perf_text = eval_score_std_span(feature_per_role_dict[role_type], dset_type)
+            f.write('{} : ({})\n'.format(role_type, perf_span[3]))
+            f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
+            f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('-------------------------------------------------------------------------\n')
 
 
 def show_results(features, output_file, metainfo):
@@ -319,6 +375,7 @@ class WhitespaceTokenizer:
     def __call__(self, text):
         words = text.split(" ")
         return Doc(self.vocab, words=words)
+
 
 def find_head(arg_start, arg_end, doc):
     arg_end -= 1

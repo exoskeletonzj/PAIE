@@ -3,7 +3,7 @@ for LR in 1e-5 2e-5 3e-5 5e-5
 do
     for SEED in 13 21 42 88 100
     do
-        work_path=exps/ace05/$SEED/$LR
+        work_path=exps/ace05_fineprompt/$SEED/${LR}
         mkdir -p $work_path # make output dir
 
         COMMAND="python -u engine.py \
@@ -11,7 +11,7 @@ do
         --dataset_type='ace_eeqa' \
         --model_name_or_path='ckpts/bart-base' \
         --template_path='./data/dset_meta/description_ace.csv' \
-        --prompt_path './data/prompts/prompts_ace_full.csv' \
+        --prompt_path './data/prompts/prompts_ace_full_and_def.csv' \
         --seed=$SEED \
         --output_dir=$work_path  \
         --learning_rate=$LR \
@@ -20,10 +20,10 @@ do
         --max_steps=10000 \
         --max_enc_seq_lengt 180 \
         --max_dec_seq_length 20 \
-        --max_prompt_seq_length 50 \
+        --max_prompt_seq_length 200 \
         2>&1 | tee $work_path/log.txt"
 
-        spring.submit arun --gpu -n1 -x SH-IDC1-10-5-30-94 -s "$COMMAND"
+        spring.submit arun --gpu -n1 -s "$COMMAND"
     done
 done
 

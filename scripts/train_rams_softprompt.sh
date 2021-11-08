@@ -1,12 +1,8 @@
-# for LR in 1e-5 2e-5 3e-5 5e-5
-# do
-#     for SEED in 13 21 42 88 100
-#     do
-for LR in 2e-5
+for LR in 1e-5 2e-5 3e-5 5e-5
 do
-    for SEED in 42
+    for SEED in 13 21 42 88 100
     do
-        work_path=exps/rams/$SEED/$LR
+        work_path=exps/rams_softprompt/$SEED/$LR
         mkdir -p $work_path
 
         COMMAND="python -u engine.py \
@@ -14,7 +10,7 @@ do
         --dataset_type='rams' \
         --model_name_or_path='ckpts/bart-base' \
         --template_path='./data/dset_meta/description_rams.csv' \
-        --prompt_path './data/prompts/prompts_rams_full.csv' \
+        --prompt_path './data/prompts/prompts_rams_continuous.csv' \
         --seed=$SEED \
         --output_dir=$work_path \
         --learning_rate=$LR \

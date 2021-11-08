@@ -1,0 +1,124 @@
+Business.Declare-Bankruptcy_Org,The organization declaring bankruptcy
+Business.Declare-Bankruptcy_Place,Where the declaration takes place
+Business.End-Org_Place,Where the event takes place
+Business.End-Org_Org,The organization that is ended
+Business.Merge-Org_Org,The organizations that are merged 
+Business.Merge-Org_Place,Where the merger takes place
+Business.Start-Org_Org,The organization that is started 
+Business.Start-Org_Place,Where the event takes place
+Business.Start-Org_Agent,The agent responsible for the event or the founder 
+Conflict.Attack_Place,Where the attack takes place
+Conflict.Attack_Target,The target of the attack (including unintended targets)
+Conflict.Attack_Attacker,The attacking or instigating agent 
+Conflict.Attack_Instrument,The instrument used in the attack
+Conflict.Demonstrate_Entity,The demonstrating agent
+Conflict.Demonstrate_Place,Where the demonstrating takes place
+Contact.Meet_Entity,The agents who are meeting  
+Contact.Meet_Place,Where the meeting takes place
+Contact.Phone-Write_Entity,The communicating agents 
+Contact.Phone-Write_Place,Where the communication takes place
+Justice.Acquit_Defendant,The agent being acquitted
+Justice.Acquit_Adjudicator,the judge or court
+Justice.Acquit_Crime,The crime of which the defendant is being
+Justice.Acquit_Place,Where the acquittal takes place
+Justice.Appeal_Adjudicator,The judge or court 
+Justice.Appeal_Plaintiff,The plaintiff
+Justice.Appeal_Defendant,The defendant
+Justice.Appeal_Place,Where The appeal takes place
+Justice.Arrest-Jail_Person,The person who is jailed or arrested 
+Justice.Arrest-Jail_Agent,The jailer or the arresting agent
+Justice.Arrest-Jail_Crime,The crime for which the person is being jailed or arrested 
+Justice.Arrest-Jail_Place,Where the person is arrested or where they are in jail 
+Justice.Charge-Indict_Adjudicator,The judge or court 
+Justice.Charge-Indict_Defendant,The agent that is indicted 
+Justice.Charge-Indict_Crime,The crime for which the defendant is being indicted
+Justice.Charge-Indict_Prosecutor,The agent bringing charges or executing the indictment 
+Justice.Charge-Indict_Place,Where the indictment takes place
+Justice.Convict_Defendant,The convicted agent
+Justice.Convict_Adjudicator,The judge or court 
+Justice.Convict_Crime,The crime for which the defendant has been convicted
+Justice.Convict_Place,Where the conviction takes place
+Justice.Execute_Place,Where the execution takes place
+Justice.Execute_Agent,The agent responsible for carrying out the execution 
+Justice.Execute_Person,The person executed 
+Justice.Execute_Crime,The crime for which the person is being executed
+Justice.Extradite_Origin,The original location of the person being extradited
+Justice.Extradite_Destination,Where the person is extradited to (the destination)
+Justice.Extradite_Agent,The extraditing agent
+Justice.Extradite_Person,The person being extradited
+Justice.Extradite_Crime,The crime for which the defendant is being extradited
+Justice.Fine_Entity,The entity that was fined 
+Justice.Fine_Adjudicator,The entity doing the fining
+Justice.Fine_Place,Where the fining event takes place
+Justice.Fine_Money,The amount of the fine
+Justice.Fine_Crime,The crime for which the defendant is being fined
+Justice.Pardon_Adjudicator,The state official who does the pardoning 
+Justice.Pardon_Place,Where the pardon takes place
+Justice.Pardon_Defendant,The agent being pardoned 
+Justice.Pardon_Crime,The crime for which the defendant is being pardoned
+Justice.Release-Parole_Entity,The former captor agent
+Justice.Release-Parole_Person,The person Who is released
+Justice.Release-Parole_Place,Where the release takes place
+Justice.Release-Parole_Crime,The crime for which the defendant is being pardoned
+Justice.Sentence_Defendant,The person who is sentenced 
+Justice.Sentence_Adjudicator,The judge or court 
+Justice.Sentence_Place,Where the sentencing takes place
+Justice.Sentence_Crime,The crime for which the person is being sentenced
+Justice.Sentence_Sentence,The sentence
+Justice.Sue_Plaintiff,The suing agent
+Justice.Sue_Defendant,The agent being sued
+Justice.Sue_Adjudicator,The judge or court
+Justice.Sue_Place,Where the suit takes place
+Justice.Sue_Crime,The crime for which the defendant is being sued
+Justice.Trial-Hearing_Defendant,The agent on trial 
+Justice.Trial-Hearing_Place,Where the trial takes place
+Justice.Trial-Hearing_Adjudicator,The judge or court 
+Justice.Trial-Hearing_Prosecutor,The prosecuting agent
+Justice.Trial-Hearing_Crime,The crime for which the defendant is being tried
+Life.Be-Born_Place,Where the birth takes place
+Life.Be-Born_Person,The person who is born
+Life.Die_Victim,The person who died
+Life.Die_Agent,The attacking agent or the killer
+Life.Die_Place,Where the death takes place
+Life.Die_Instrument,The device used to kill
+Life.Divorce_Person,The people who are divorced 
+Life.Divorce_Place,Where the divorce takes place
+Life.Injure_Victim,The harmed person
+Life.Injure_Agent,The attacking agent or the one that enacts the harm
+Life.Injure_Place,Where the injuring takes place
+Life.Injure_Instrument,The device used to inflict the harm
+Life.Marry_Person,The people who are married 
+Life.Marry_Place,Where the marriage takes place
+Movement.Transport_Vehicle,The vehicle used to transport the person or artifact
+Movement.Transport_Artifact,The person doing the traveling or the artifact being transported
+Movement.Transport_Destination,Where the transporting is being directed
+Movement.Transport_Agent,The agent responsible for the transportation
+Movement.Transport_Origin,Where the transporting originated
+Movement.Transport_Price,The price of transporting the person or artifact
+Personnel.Elect_Person,The person elected 
+Personnel.Elect_Entity,The voting agent
+Personnel.Elect_Position,The position being nominated to
+Personnel.Elect_Place,Where the election takes place
+Personnel.End-Position_Entity,The employer
+Personnel.End-Position_Person,The employee
+Personnel.End-Position_Place,Where the employment relationship ends
+Personnel.End-Position_Position,The position being ended
+Personnel.Nominate_Person,The person nominated?
+Personnel.Nominate_Agent,The nominating agent
+Personnel.Nominate_Position,The position being nominated to
+Personnel.Nominate_Place,Where the nomination takes place
+Personnel.Start-Position_Person,The employee
+Personnel.Start-Position_Entity,The employer
+Personnel.Start-Position_Place,Where the employment relationship begins
+Personnel.Start-Position_Position,The position being started
+Transaction.Transfer-Money_Giver,The donating agent
+Transaction.Transfer-Money_Recipient,The recipient agent
+Transaction.Transfer-Money_Beneficiary,The agent that benefits from the transfer
+Transaction.Transfer-Money_Money,The amount of money given or donated or loaned
+Transaction.Transfer-Money_Place,Where the transaction takes place
+Transaction.Transfer-Ownership_Buyer,The buying agent
+Transaction.Transfer-Ownership_Artifact,The item or organization that was bought or sold
+Transaction.Transfer-Ownership_Seller,The selling agent
+Transaction.Transfer-Ownership_Place,Where the sale takes place
+Transaction.Transfer-Ownership_Beneficiary,The agent that benefits from the transaction
+Transaction.Transfer-Ownership_Price,The sale price of this transaction
