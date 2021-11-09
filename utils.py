@@ -179,10 +179,13 @@ def eval_score_per_type(features, dset_type, output_file):
     
     with open(output_file, 'w') as f:
         for event_type in sorted(feature_per_type_dict.keys()):
-            perf_span, perf_text = eval_score_std_span(feature_per_type_dict[event_type], dset_type)
+            perf_span, perf_text, perf_identify, perf_head = \
+                eval_score_std_span_full_metrics(feature_per_type_dict[event_type], dset_type)
             f.write('{} : ({})\n'.format(event_type, perf_span[3]))
             f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
             f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
+            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
             f.write('-------------------------------------------------------------------------\n')
 
 
@@ -203,10 +206,13 @@ def eval_score_per_role(features, dset_type, output_file):
 
     with open(output_file, 'w') as f:
         for role_type in sorted(feature_per_role_dict.keys()):
-            perf_span, perf_text = eval_score_std_span(feature_per_role_dict[role_type], dset_type)
+            perf_span, perf_text, perf_identify, perf_head = \
+                eval_score_std_span_full_metrics(feature_per_role_dict[role_type], dset_type)
             f.write('{} : ({})\n'.format(role_type, perf_span[3]))
             f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
             f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
+            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
             f.write('-------------------------------------------------------------------------\n')
 
 
@@ -237,10 +243,12 @@ def eval_score_per_argnum(features, dset_type, output_file):
             split_features = []
             for feature in features:
                 split_features.append(get_split_feature(feature, argnum))
-            perf_span, perf_text = eval_score_std_span(split_features, dset_type)
+            perf_span, perf_text, perf_identify, perf_head = eval_score_std_span_full_metrics(split_features, dset_type)
             f.write("ARGNUM:{} ({})\n".format(argnum, perf_span[3]))
             f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
             f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
+            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
             f.write('-------------------------------------------------------------------------\n')
 
 
@@ -286,10 +294,13 @@ def eval_score_per_dist(features, examples, dset_type, output_file):
                 example = example_dict[feature.example_id]
                 first_word_locs = example.first_word_locs
                 split_features.append(get_split_feature(feature, first_word_locs, dist))
-            perf_span, perf_text = eval_score_std_span(split_features, dset_type)
+            perf_span, perf_text, perf_identify, perf_head = \
+                eval_score_std_span_full_metrics(split_features, dset_type)
             f.write("Dist:{} ({})\n".format(dist, perf_span[3]))
             f.write('SPAN-EVAL: R {} P {} F {}'.format(perf_span[0], perf_span[1], perf_span[2]))
             f.write('TEXT-EVAL: R {} P {} F {}'.format(perf_text[0], perf_text[1], perf_text[2]))
+            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
+            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
             f.write('-------------------------------------------------------------------------\n')
 
 

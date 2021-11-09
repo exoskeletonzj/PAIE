@@ -15,8 +15,8 @@ import sys
 from models import build_model
 from processors import build_processor
 
-from utils import set_seed, get_best_indexes, get_best_index, count_time
-from utils import eval_score_std_span, eval_score_per_type, eval_score_per_role, eval_score_per_dist, eval_score_per_argnum, show_results
+from utils import set_seed, get_best_indexes, get_best_index, count_time,  show_results
+from utils import eval_score_std_span_full_metrics, eval_score_per_type, eval_score_per_role, eval_score_per_dist, eval_score_per_argnum
 
 logger = logging.getLogger(__name__)
 
@@ -236,9 +236,12 @@ def evaluate(args, model, features, dataloader, tokenizer, set_type='dev'):
             feature.pred_dict[role] = answer_span_pred_list
     
     original_features = copy.deepcopy(features)     # After eval_score, the span recorded in features will be changed. We want to keep the original value for further evaluation.
-    perf_span, perf_text = eval_score_std_span(features, args.dataset_type)
+    perf_span, perf_text, perf_identify, perf_head = eval_score_std_span_full_metrics(features, args.dataset_type)
     logging.info('SPAN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_span[3], perf_span[0], perf_span[1], perf_span[2]))
     logging.info('TEXT-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_text[3], perf_text[0], perf_text[1], perf_text[2]))
+    logging.info('IDEN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_identify[3], perf_identify[0], perf_identify[1], perf_identify[2]))
+    logging.info('HEAD-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_head[3], perf_head[0], perf_head[1], perf_head[2]))
+
     return perf_span, perf_text, original_features
 
 
