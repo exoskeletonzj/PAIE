@@ -27,6 +27,7 @@ def build_model(args, model_type):
     config.max_prompt_seq_length=args.max_prompt_seq_length
     config.max_span_length = args.max_span_length
 
+    config.matching_method = args.matching_method
     config.matching_method_train = args.matching_method_train
 
     tokenizer = tokenizer_class.from_pretrained(args.model_name_or_path, add_special_tokens=True)

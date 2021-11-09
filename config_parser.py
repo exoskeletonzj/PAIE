@@ -40,6 +40,7 @@ def get_args_parser():
 
     # paie setting
     parser.add_argument('--matching_method_train', default="max", choices=["naive", "max", 'accurate'], type=str)
+    parser.add_argument('--matching_method', default="bipartite", choices=["no_bipartite", "bipartite"], type=str)
 
     # input text setting
     parser.add_argument('--context_template', default="with_trigger_sp", 

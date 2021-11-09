@@ -141,7 +141,19 @@ class PAIE(BartPretrainedModel):
                         target_spans = target_spans + [[0,0]] * pad_len
                         target["span_s"] = target["span_s"] + [0] * pad_len
                         target["span_e"] = target["span_e"] + [0] * pad_len
-                    idx_preds, idx_targets = hungarian_matcher(predicted_spans, target_spans)
+                        
+                    if self.config.matching_method=='bipartite':
+                        idx_preds, idx_targets = hungarian_matcher(predicted_spans, target_spans)
+                    elif self.config.matching_method=='no_bipartite':
+                        idx_preds = list(range(len(predicted_spans)))
+                        idx_targets = list(range(len(target_spans)))
+                        if len(idx_targets) > len(idx_preds):
+                            idx_targets = idx_targets[0:len(idx_preds)]
+                        idx_preds = torch.as_tensor(idx_preds, dtype=torch.int64)
+                        idx_targets = torch.as_tensor(idx_targets, dtype=torch.int64)
+                    else:
+                        raise AssertionError("Config param matching_method error!")
+
                     cnt += len(idx_preds)
                     start_loss = self.loss_fct(torch.stack(start_logits_list)[idx_preds], torch.LongTensor(target["span_s"]).to(self.config.device)[idx_targets], reduction='sum')
                     end_loss   = self.loss_fct(torch.stack(end_logits_list)[idx_preds], torch.LongTensor(target["span_e"]).to(self.config.device)[idx_targets], reduction='sum')
