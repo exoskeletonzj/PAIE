@@ -13,25 +13,18 @@ class BaseEvaluator:
         cfg=None,
         data_loader=None,
         model=None,
-        convert_fn=None,
         metric_fn_dict=None,
     ):
 
         self.cfg = cfg
         self.eval_loader = data_loader
         self.model = model
-
-        self.convert_fn = convert_fn
         self._init_metric(metric_fn_dict)
 
     
     def _init_metric(self, metric_fn_dict):
         self.metric_fn_dict = metric_fn_dict
         # self.metric_val_dict = {metric:None for metric in metric_fn_dict}
-
-    
-    def convert_batch_to_inputs(self, batch):
-        return self.convert_fn(batch)
 
 
     def calculate_one_batch(self, batch):
@@ -40,8 +33,33 @@ class BaseEvaluator:
             _, outputs_list = self.model(**inputs)
         return outputs_list, named_v
 
-    
+
+    def evaluate_one_batch(self, batch):
+        outputs_list, named_v = self.calculate_one_batch(batch)
+        self.collect_fn(outputs_list, named_v, batch)
+
+
     def evaluate(self):
+        self.model.eval()
+        self.build_and_clean_record()
+        for batch in self.eval_loader:
+            self.evaluate_one_batch(batch)
+        self.predict()
+
+
+    def build_and_clean_record(self):
+        raise NotImplementedError
+
+
+    def collect_fn(self, outputs_list, named_v, batch):
+        raise NotImplementedError
+
+     
+    def convert_batch_to_inputs(self, batch):
+        return NotImplementedError
+
+
+    def predict(self):
         raise NotImplementedError
 
 
@@ -51,14 +69,31 @@ class Evaluator(BaseEvaluator):
         cfg=None, 
         data_loader=None, 
         model=None, 
-        convert_fn=None, 
         metric_fn_dict=None,
         features=None,
     ):
-        super().__init__(cfg, data_loader, model, convert_fn, metric_fn_dict)
+        super().__init__(cfg, data_loader, model, metric_fn_dict)
         self.features = features
 
     
+    def convert_batch_to_inputs(self, batch):
+        inputs = {
+            'enc_input_ids':  batch[0].to(self.cfg.device), 
+            'enc_mask_ids':   batch[1].to(self.cfg.device), 
+            'dec_prompt_ids':           batch[4].to(self.cfg.device),
+            'dec_prompt_mask_ids':      batch[5].to(self.cfg.device),
+            'old_tok_to_new_tok_indexs':batch[7],
+            'arg_joint_prompts':        batch[8],
+            'target_info':              None, 
+            'arg_list':       batch[9],
+        }
+        named_v = {
+            "arg_roles": batch[9],
+            "feature_ids": batch[11],
+        }
+        return inputs, named_v
+
+
     def build_and_clean_record(self):
         self.record = {
             "feature_id_list": list(),
@@ -67,10 +102,8 @@ class Evaluator(BaseEvaluator):
             "full_end_logit_list": list()
         }
 
-    
-    def evaluate_one_batch(self, batch):
-        outputs_list, named_v = self.calculate_one_batch(batch)
 
+    def collect_fn(self, outputs_list, named_v, batch):   
         bs = len(batch[0])
         for i in range(bs):
             predictions = outputs_list[i]
@@ -87,13 +120,8 @@ class Evaluator(BaseEvaluator):
                     self.record["full_start_logit_list"].append(start_logit)
                     self.record["full_end_logit_list"].append(end_logit)
 
-
-    def evaluate(self):
-        self.build_and_clean_record()
-        self.model.eval()
-        for batch in self.eval_loader:
-            self.evaluate_one_batch(batch)
-
+    
+    def predict(self):
         pred_list = []
         if "paie" in self.cfg.model_type:
             for s in range(0, len(self.record["full_start_logit_list"]), self.cfg.infer_batch_size):
@@ -118,6 +146,8 @@ class Evaluator(BaseEvaluator):
         logger.info('IDEN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_identify[3], perf_identify[0], perf_identify[1], perf_identify[2]))
         logger.info('HEAD-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_head[3], perf_head[0], perf_head[1], perf_head[2]))
 
+        # self.metric_val_dict["perf_span"] = perf_span
+        # self.metric_val_dict["perf_text"] = perf_text
         # return perf_span, perf_text, original_features
         
 

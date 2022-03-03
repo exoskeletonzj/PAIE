@@ -5,7 +5,7 @@ import torch.nn as nn
 logger = logging.getLogger(__name__)
 
 
-class Trainer:
+class BaseTrainer:
     def __init__(
         self,
         cfg=None,
@@ -13,7 +13,6 @@ class Trainer:
         model=None,
         optimizer=None,
         scheduler=None,
-        convert_fn=None,
     ):
 
         self.cfg = cfg
@@ -23,7 +22,6 @@ class Trainer:
 
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.convert_fn = convert_fn
         self._init_metric()
 
 
@@ -34,8 +32,11 @@ class Trainer:
         }
 
 
-    def convert_batch_to_inputs(self, batch):
-        return self.convert_fn(batch)
+    def write_log(self):
+        logger.info("-----------------------global_step: {} -------------------------------- ".format(self.metric['global_steps']))
+        logger.info('lr: {}'.format(self.scheduler.get_last_lr()[0]))
+        logger.info('smooth_loss: {}'.format(self.metric['smooth_loss']))
+        self.metric['smooth_loss'] = 0.0
 
 
     def train_one_step(self):
@@ -63,8 +64,25 @@ class Trainer:
             self.model.zero_grad()
             self.metric['global_steps'] += 1
 
-        if self.metric['global_steps'] % self.cfg.logging_steps == 0:
-            logger.info("-----------------------global_step: {} -------------------------------- ".format(self.metric['global_steps']))
-            logger.info('lr: {}'.format(self.scheduler.get_lr()[0]))
-            logger.info('smooth_loss: {}'.format(self.metric['smooth_loss']))
-            self.metric['smooth_loss'] = 0.0
+
+    def convert_batch_to_inputs(self, batch):
+        raise NotImplementedError
+
+
+class Trainer(BaseTrainer):
+    def __init__(self, cfg=None, data_loader=None, model=None, optimizer=None, scheduler=None):
+        super().__init__(cfg, data_loader, model, optimizer, scheduler)
+
+    
+    def convert_batch_to_inputs(self, batch):
+        inputs = {
+            'enc_input_ids':  batch[0].to(self.cfg.device), 
+            'enc_mask_ids':   batch[1].to(self.cfg.device), 
+            'dec_prompt_ids':           batch[4].to(self.cfg.device),
+            'dec_prompt_mask_ids':      batch[5].to(self.cfg.device),
+            'target_info':              batch[6], 
+            'old_tok_to_new_tok_indexs':batch[7],
+            'arg_joint_prompts':        batch[8],
+            'arg_list':       batch[9],
+        }
+        return inputs

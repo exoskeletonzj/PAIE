@@ -18,8 +18,6 @@ class Runner:
         model=None,
         optimizer=None,
         scheduler=None,
-        convert_fn_train=None,
-        convert_fn_eval=None,
         metric_fn_dict=None,
     ):
 
@@ -34,13 +32,11 @@ class Runner:
             model=model,
             optimizer=optimizer,
             scheduler=scheduler,
-            convert_fn=convert_fn_train,
         )
         self.dev_evaluator = Evaluator(
             cfg=self.cfg,
             data_loader=dev_loader,
             model=model,
-            convert_fn=convert_fn_eval,
             metric_fn_dict=metric_fn_dict,
             features=dev_features,
         )
@@ -48,7 +44,6 @@ class Runner:
             cfg=self.cfg,
             data_loader=test_loader,
             model=model,
-            convert_fn=convert_fn_eval,
             metric_fn_dict=metric_fn_dict,
             features=test_features,
         )
@@ -58,7 +53,10 @@ class Runner:
         for step in range(self.cfg.max_steps):
             self.trainer.train_one_step()
 
-            if step%self.cfg.eval_steps==0:
+            if (step+1)%self.cfg.logging_steps == 0:
+                self.trainer.write_log()
+
+            if (step+1)%self.cfg.eval_steps==0:
                 self.dev_evaluator.evaluate()
                 self.test_evaluator.evaluate()
 

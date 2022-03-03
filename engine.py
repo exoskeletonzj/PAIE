@@ -1,3 +1,4 @@
+from gc import collect
 import os
 os.environ['MKL_SERVICE_FORCE_INTEL'] = "1"
 if os.environ.get('DEBUG', False): print('\033[92m'+'Running code in DEBUG mode'+'\033[0m')
@@ -48,37 +49,6 @@ def train(args, model, processor):
     logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", args.max_steps)
 
-    def convert_fn_train(batch):
-        inputs = {
-            'enc_input_ids':  batch[0].to(args.device), 
-            'enc_mask_ids':   batch[1].to(args.device), 
-            'dec_prompt_ids':           batch[4].to(args.device),
-            'dec_prompt_mask_ids':      batch[5].to(args.device),
-            'target_info':              batch[6], 
-            'old_tok_to_new_tok_indexs':batch[7],
-            'arg_joint_prompts':        batch[8],
-            'arg_list':       batch[9],
-        }
-        return inputs
-
-    def convert_fn_eval(batch):
-        inputs = {
-            'enc_input_ids':  batch[0].to(args.device), 
-            'enc_mask_ids':   batch[1].to(args.device), 
-            'dec_prompt_ids':           batch[4].to(args.device),
-            'dec_prompt_mask_ids':      batch[5].to(args.device),
-            'old_tok_to_new_tok_indexs':batch[7],
-            'arg_joint_prompts':        batch[8],
-            'target_info':              None, 
-            'arg_list':       batch[9],
-        }
-
-        named_v = {
-            "arg_roles": batch[9],
-            "feature_ids": batch[11],
-        }
-        return inputs, named_v
-
 
     runner = Runner(
         cfg=args,
@@ -88,8 +58,6 @@ def train(args, model, processor):
         model=model,
         optimizer=optimizer,
         scheduler=scheduler,
-        convert_fn_train=convert_fn_train,
-        convert_fn_eval=convert_fn_eval,
         metric_fn_dict=None,
     )
     runner.run()
