@@ -44,23 +44,24 @@ class BaseEvaluator:
         self.build_and_clean_record()
         for batch in self.eval_loader:
             self.evaluate_one_batch(batch)
-        self.predict()
+        output = self.predict()
+        return output
 
 
     def build_and_clean_record(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
     def collect_fn(self, outputs_list, named_v, batch):
-        raise NotImplementedError
+        raise NotImplementedError()
 
      
     def convert_batch_to_inputs(self, batch):
-        return NotImplementedError
+        return NotImplementedError()
 
 
     def predict(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class Evaluator(BaseEvaluator):
@@ -71,9 +72,11 @@ class Evaluator(BaseEvaluator):
         model=None, 
         metric_fn_dict=None,
         features=None,
+        set_type=None,
     ):
         super().__init__(cfg, data_loader, model, metric_fn_dict)
         self.features = features
+        self.set_type = set_type
 
     
     def convert_batch_to_inputs(self, batch):
@@ -108,12 +111,8 @@ class Evaluator(BaseEvaluator):
         for i in range(bs):
             predictions = outputs_list[i]
             feature_id = named_v["feature_ids"][i].item()
-            feature = self.features[feature_id]
-            feature.init_pred()
-            feature.set_gt(self.cfg.model_type)
             for arg_role in named_v["arg_roles"][i]:
                 [start_logits_list, end_logits_list] = predictions[arg_role] # NOTE base model should also has these kind of output
-                feature.pred_dict[arg_role] = list()
                 for (start_logit, end_logit) in zip(start_logits_list, end_logits_list):
                     self.record["feature_id_list"].append(feature_id)
                     self.record["role_list"].append(arg_role)
@@ -122,33 +121,36 @@ class Evaluator(BaseEvaluator):
 
     
     def predict(self):
-        pred_list = []
+        for feature in self.features:
+            feature.init_pred()
+            feature.set_gt(self.cfg.model_type)
+
         if "paie" in self.cfg.model_type:
+            pred_list = []
             for s in range(0, len(self.record["full_start_logit_list"]), self.cfg.infer_batch_size):
                 sub_max_locs, cal_time, mask_time, score_time = get_best_indexes(self.features, self.record["feature_id_list"][s:s+self.cfg.infer_batch_size], \
                     self.record["full_start_logit_list"][s:s+self.cfg.infer_batch_size], self.record["full_end_logit_list"][s:s+self.cfg.infer_batch_size], self.cfg)
                 pred_list.extend(sub_max_locs)
             for (pred, feature_id, role) in zip(pred_list, self.record["feature_id_list"], self.record["role_list"]):
-                self.features[feature_id].pred_dict[role].append((pred[0].item(), pred[1].item()))
+                pred_span = (pred[0].item(), pred[1].item())
+                feature = self.features[feature_id]
+                feature.add_pred(role, pred_span)
         else:
             for feature_id, role, start_logit, end_logit in zip(
                 self.record["feature_id_list"], self.record["role_list"], self.record["full_start_logit_list"], self.record["full_end_logit_list"]
             ):
                 feature = self.features[feature_id]
                 answer_span_pred_list = get_best_index(feature, start_logit, end_logit, self.cfg.max_span_length, self.cfg.max_span_num, self.cfg.th_delta)
-                feature.pred_dict[role] = answer_span_pred_list
+                feature.add_pred(role, answer_span_pred_list)
 
-        set_type = "None"
         original_features = copy.deepcopy(self.features)     # After eval_score, the span recorded in features will be changed. We want to keep the original value for further evaluation.
         perf_span, perf_text, perf_identify, perf_head = eval_score_std_span_full_metrics(self.features, self.cfg.dataset_type)
-        logger.info('SPAN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_span[3], perf_span[0], perf_span[1], perf_span[2]))
-        logger.info('TEXT-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_text[3], perf_text[0], perf_text[1], perf_text[2]))
-        logger.info('IDEN-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_identify[3], perf_identify[0], perf_identify[1], perf_identify[2]))
-        logger.info('HEAD-EVAL {} ({}): R {} P {} F {}'.format(set_type, perf_head[3], perf_head[0], perf_head[1], perf_head[2]))
+        logger.info('SPAN-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_span[3], perf_span[0], perf_span[1], perf_span[2]))
+        logger.info('TEXT-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_text[3], perf_text[0], perf_text[1], perf_text[2]))
+        logger.info('IDEN-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_identify[3], perf_identify[0], perf_identify[1], perf_identify[2]))
+        logger.info('HEAD-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_head[3], perf_head[0], perf_head[1], perf_head[2]))
 
-        # self.metric_val_dict["perf_span"] = perf_span
-        # self.metric_val_dict["perf_text"] = perf_text
-        # return perf_span, perf_text, original_features
+        return perf_span, perf_text, original_features
         
 
         

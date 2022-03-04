@@ -58,19 +58,22 @@ class InputFeatures(object):
         self.target_info = target_info
         self.old_tok_to_new_tok_index = old_tok_to_new_tok_index
 
-        self.full_text=full_text
+        self.full_text = full_text
         self.arg_list = arg_list
 
 
     def init_pred(self):
         self.pred_dict = dict()
     
-
+    def add_pred(self, role, arg):
+        if role not in self.pred_dict:
+            self.pred_dict[role] = list()
+        self.pred_dict[role].append(arg)
+    
     def set_gt(self, model_type):
         self.gt_dict = dict()
         if model_type == 'base':
             for k,v in self.target_info.items():
-                # ipdb.set_trace()
                 span_s = list(np.where(v["span_s"])[0])
                 span_e = list(np.where(v["span_e"])[0])
                 self.gt_dict[k] = [(s,e) for (s,e) in zip(span_s, span_e)]
@@ -232,7 +235,7 @@ class MultiargProcessor(DSET_processor):
             curr = 0
             for tok in sent:
                 if tok not in EXTERNAL_TOKENS:
-                    old_tok_to_char_index.append([ curr, curr+len(tok)-1 ]) # exact word start char and end char index
+                    old_tok_to_char_index.append([curr, curr+len(tok)-1]) # exact word start char and end char index
                 curr += len(tok)+1
 
             enc = self.tokenizer(enc_text)
@@ -288,7 +291,6 @@ class MultiargProcessor(DSET_processor):
                     }
                     
                     for matching_result in re.finditer(r'\b'+re.escape(arg)+r'\b', dec_prompt_text.split('.')[0]): # Using this more accurate regular expression might further improve rams results
-                    # for matching_result in re.finditer(r'\b'+re.escape(arg)+r'\b', dec_prompt_text): # Using this more accurate regular expression might further improve rams results
                         char_idx_s, char_idx_e = matching_result.span(); char_idx_e -= 1
                         tok_prompt_s = dec_prompt.char_to_token(char_idx_s)
                         tok_prompt_e = dec_prompt.char_to_token(char_idx_e) + 1
@@ -301,7 +303,7 @@ class MultiargProcessor(DSET_processor):
                     arg_idxs = [i for i, x in enumerate(event_args_name) if x == arg]
                     if os.environ.get("DEBUG", False): counter[0] += 1; counter[1]+=len(arg_idxs)
 
-                    for i, arg_idx in enumerate(arg_idxs):
+                    for arg_idx in arg_idxs:
                         event_arg_info = event_args[arg_idx]
                         answer_text = event_arg_info['text']; answer_texts.append(answer_text)
                         start_old, end_old = event_arg_info['start'], event_arg_info['end']
@@ -387,7 +389,6 @@ class MultiargProcessor(DSET_processor):
         dataset = self.convert_features_to_dataset(features)
 
         if set_type != 'train':
-            # Note that DistributedSampler samples randomly
             dataset_sampler = SequentialSampler(dataset)
         else:
             dataset_sampler = RandomSampler(dataset)

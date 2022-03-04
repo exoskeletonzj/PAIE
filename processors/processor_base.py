@@ -38,7 +38,7 @@ class ACE_event:
         s += "event_type: {}\n".format(self.type)
         s += "trigger: {}\n".format(self.trigger['text'])
         for arg in self.args:
-            s += "arg {}: {}\n".format(arg['role'], arg['text'])
+            s += "arg {}: {} ({}, {})\n".format(arg['role'], arg['text'], arg['start'], arg['end'])
         s += "----------------------------------------------\n"
         return s
 

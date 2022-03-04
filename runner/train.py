@@ -1,4 +1,3 @@
-import os
 import logging
 import torch.nn as nn
 
@@ -66,7 +65,7 @@ class BaseTrainer:
 
 
     def convert_batch_to_inputs(self, batch):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class Trainer(BaseTrainer):
