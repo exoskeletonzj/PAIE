@@ -63,27 +63,78 @@ class InputFeatures(object):
 
 
     def init_pred(self):
-        self.pred_dict = dict()
+        self.pred_dict_tok = dict()
+        self.pred_dict_word = dict()
     
-    def add_pred(self, role, arg):
-        if role not in self.pred_dict:
-            self.pred_dict[role] = list()
-        self.pred_dict[role].append(arg)
-    
-    def set_gt(self, model_type):
-        self.gt_dict = dict()
+
+    def add_pred(self, role, span, dset_type):
+        if role not in self.pred_dict_tok:
+            self.pred_dict_tok[role] = list()
+        if span not in self.pred_dict_tok[role]:
+            self.pred_dict_tok[role].append(span)
+
+            if span!=(0, 0):
+                if role not in self.pred_dict_word:
+                    self.pred_dict_word[role] = list()
+                word_span = self.get_word_span(span, dset_type)
+                if word_span not in self.pred_dict_word[role]:
+                    self.pred_dict_word[role].append(word_span)
+
+
+    def set_gt(self, model_type, dset_type):
+        self.gt_dict_tok = dict()
         if model_type == 'base':
             for k,v in self.target_info.items():
                 span_s = list(np.where(v["span_s"])[0])
                 span_e = list(np.where(v["span_e"])[0])
-                self.gt_dict[k] = [(s,e) for (s,e) in zip(span_s, span_e)]
+                self.gt_dict_tok[k] = [(s,e) for (s,e) in zip(span_s, span_e)]
         elif "paie" in model_type:
             for k,v in self.target_info.items():
-                self.gt_dict[k] = [(s,e) for (s,e) in zip(v["span_s"], v["span_e"])]
+                self.gt_dict_tok[k] = [(s,e) for (s,e) in zip(v["span_s"], v["span_e"])]
         else:
             assert(0==1)
 
+        self.gt_dict_word = dict()
+        for role in self.gt_dict_tok:
+            for span in self.gt_dict_tok[role]:
+                if span!=(0, 0):
+                    if role not in self.gt_dict_word:
+                        self.gt_dict_word[role] = list()
+                    word_span = self.get_word_span(span, dset_type)
+                    self.gt_dict_word[role].append(word_span)
 
+        
+    @property
+    def old_tok_index(self):
+        new_tok_index_to_old_tok_index = dict()
+        for old_tok_id, (new_tok_id_s, new_tok_id_e) in enumerate(self.old_tok_to_new_tok_index):
+            for j in range(new_tok_id_s, new_tok_id_e):
+                new_tok_index_to_old_tok_index[j] = old_tok_id 
+        return new_tok_index_to_old_tok_index
+
+
+    def get_word_span(self, span, dset_type):
+        """
+        Given features with gt/pred token-spans, output gt/pred word-spans
+        """
+        if span==(0, 0):
+            raise AssertionError()
+        offset = 0 if dset_type=='ace_eeqa' else self.event_trigger[2]
+        span = list(span)
+        span[0] = min(span[0], max(self.old_tok_index.keys()))
+        span[1] = max(span[1]-1, min(self.old_tok_index.keys()))
+
+        while span[0] not in self.old_tok_index:
+            span[0] += 1 
+        span_s = self.old_tok_index[span[0]] + offset
+        while span[1] not in self.old_tok_index:
+            span[1] -= 1 
+        span_e = self.old_tok_index[span[1]] + offset
+        while span_e < span_s:
+            span_e += 1
+        return (span_s, span_e)
+
+        
     def __repr__(self):
         s = "" 
         s += "example_id: {}\n".format(self.example_id)
@@ -95,7 +146,6 @@ class InputFeatures(object):
         s += "enc_mask_ids: {}\n".format(self.enc_mask_ids)
         s += "dec_prompt_ids: {}\n".format(self.dec_prompt_ids)
         s += "dec_prompt_mask_ids: {}\n".format(self.dec_prompt_mask_ids)
-
         return s
 
 

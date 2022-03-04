@@ -111,29 +111,13 @@ def eval_score_std_span(features, dset_type):
     gt_num, pred_num, correct_num, correct_text = 0, 0, 0, 0 
     
     for feature in features:
-        new_tok_index_to_old_tok_index = _new_tok_id2old_tok_id(feature.old_tok_to_new_tok_index)
-        
-        # NOTE deal with missing aligned ids
-        if dset_type=='ace_eeqa':
-            offset=0 # since eeqa annotation do not contain full text but partial text, although offset is provided
-        else:
-            offset = feature.event_trigger[2]
-
-        for arg_role in feature.arg_list:
-            pred_list=list(); gt_list = list()
-            for span in feature.pred_dict[arg_role]:
-                if span != (0,0):
-                    pred_list.append(_tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset))
-            pred_list = list(set(pred_list))
-
-            if arg_role in feature.gt_dict:
-                for span in feature.gt_dict[arg_role]:
-                    if span != (0,0):
-                        gt_list.append(_tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset))
-
+        for role in feature.arg_list:
+            pred_list = feature.pred_dict_word[role]
+            gt_list = feature.gt_dict_word[role]
             pred_list_copy = copy.deepcopy(pred_list)
-            gt_num += len(gt_list)
+
             pred_num += len(pred_list)
+            gt_num += len(gt_list)
             
             if len(gt_list) != 0:
                 correct_list = []
@@ -141,9 +125,6 @@ def eval_score_std_span(features, dset_type):
                     if gt_span in pred_list:
                         correct_list.append(pred_list.pop(pred_list.index(gt_span)))
                 correct_num += len(correct_list)
-
-            feature.pred_dict[arg_role] = pred_list_copy
-            feature.gt_dict[arg_role] = gt_list
 
             full_text = feature.full_text
             gt_texts = [_normalize_answer(" ".join(full_text[gt_span[0]: gt_span[1]+1])) for gt_span in gt_list]
@@ -320,9 +301,9 @@ def show_results(features, output_file, metainfo):
             f.write("Example ID {}\n".format(example_id))
             full_text = feature.full_text
             for arg_role in feature.arg_list:
-                
-                pred_list = feature.pred_dict[arg_role] 
-                gt_list = feature.gt_dict[arg_role]
+                 
+                pred_list = feature.pred_dict_word[arg_role] if arg_role in feature.pred_dict_word else list()
+                gt_list = feature.gt_dict_word[arg_role] if arg_role in feature.gt_dict_word else list()
                 if len(pred_list)==0 and len(gt_list)==0:
                     continue
                 
@@ -332,7 +313,7 @@ def show_results(features, output_file, metainfo):
                 if len(gt_list) > 0 and len(pred_list) == 0:
                     pred_list = [(-1,-1)] * len(gt_list)
 
-                gt_idxs, pred_idxs = hungarian_matcher( gt_list, pred_list)
+                gt_idxs, pred_idxs = hungarian_matcher(gt_list, pred_list)
 
                 for pred_idx, gt_idx in zip(pred_idxs, gt_idxs):
                     if gt_list[gt_idx] == (-1,-1) and pred_list[pred_idx] == (-1,-1):
@@ -349,7 +330,7 @@ def show_results(features, output_file, metainfo):
                 if len(gt_idxs) < len(gt_list): # prediction  __no answer__
                     for idx in range(len(gt_list)):
                         if idx not in gt_idxs:
-                            gt_text = gt_text = " ".join(full_text[gt_list[idx][0]: gt_list[idx][1]+1])
+                            gt_text = " ".join(full_text[gt_list[idx][0]: gt_list[idx][1]+1])
                             f.write("Arg {} dismatched: Pred: {} ({},{})\tGt: {} ({},{})\n".format(arg_role, "__ No answer __", -1, -1, gt_text, gt_list[idx][0], gt_list[idx][1])) 
 
                 if len(pred_idxs) < len(pred_list): # ground truth  __no answer__
@@ -488,7 +469,7 @@ def find_head(arg_start, arg_end, doc):
     return head_text
 
 
-def eval_score_std_span_full_metrics(features, dset_type):
+def eval_score_std_span_full_metrics(features):
     nlp = spacy.load('en_core_web_sm')
     nlp.tokenizer = WhitespaceTokenizer(nlp.vocab)
 
@@ -499,40 +480,18 @@ def eval_score_std_span_full_metrics(features, dset_type):
     
     last_full_text = None
     for feature in features:
-        new_tok_index_to_old_tok_index = _new_tok_id2old_tok_id(feature.old_tok_to_new_tok_index)
-        
-        # NOTE deal with missing aligned ids
-        if dset_type=='ace_eeqa':
-            offset=0 # since eeqa annotation do not contain full text but partial text, although offset is provided
-        else:
-            offset = feature.event_trigger[2]
+        all_pred_list = list()
+        all_gt_list = list()
 
-        all_pred_list = list(); all_gt_list = list()
-        for arg_role in feature.arg_list:
-            pred_list = list(); gt_list = list()
-            for span in feature.pred_dict[arg_role]:
-                if span != (0,0):
-                    pred_list.append(_tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset) )
-            pred_list = list(set(pred_list))
-
-            if arg_role in feature.gt_dict:
-                for span in feature.gt_dict[arg_role]:
-                    if span != (0,0):
-                        gt_list.append(_tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset))
-
-            pred_list_copy = copy.deepcopy(pred_list)
+        for role in feature.arg_list:
+            gt_list = feature.gt_dict_word[role] if role in feature.gt_dict_word else list()
+            pred_list = list(set(feature.pred_dict_word[role])) if role in feature.pred_dict_word else list()
             gt_num += len(gt_list)
             pred_num += len(pred_list)
             
-            if len(gt_list) != 0:
-                correct_list = []
-                for gt_span in gt_list:
-                    if gt_span in pred_list:
-                        correct_list.append(pred_list.pop(pred_list.index(gt_span)))
-                correct_num += len(correct_list)
-
-            feature.pred_dict[arg_role] = pred_list_copy
-            feature.gt_dict[arg_role] = gt_list
+            for gt_span in gt_list:
+                if gt_span in pred_list:
+                    correct_num += 1
 
             full_text = feature.full_text
             if full_text!=last_full_text:
@@ -541,21 +500,18 @@ def eval_score_std_span_full_metrics(features, dset_type):
             gt_texts = [_normalize_answer(" ".join(full_text[gt_span[0]: gt_span[1]+1])) for gt_span in gt_list]
             gt_head_texts = [str(find_head(gt_span[0], gt_span[1]+1, doc)) for gt_span in gt_list]
 
-            pred_texts = [_normalize_answer(" ".join(full_text[pred_span[0]: pred_span[1]+1])) for pred_span in pred_list_copy]
-            pred_head_texts = [str(find_head(pred_span[0], pred_span[1]+1, doc)) for pred_span in pred_list_copy]
-            pred_texts_copy = copy.deepcopy(pred_texts)
-            if len(gt_texts) != 0:
-                correct_list = []
-                for gt_text in gt_texts:
-                    if gt_text in pred_texts:
-                        correct_list.append(pred_texts.pop(pred_texts.index(gt_text)))
-                correct_text_num += len(correct_list)
+            pred_texts = list(set([_normalize_answer(" ".join(full_text[pred_span[0]: pred_span[1]+1])) for pred_span in copy.deepcopy(pred_list)]))
+            pred_head_texts = list(set([str(find_head(pred_span[0], pred_span[1]+1, doc)) for pred_span in copy.deepcopy(pred_list)]))
+
+            for gt_text in gt_texts:
+                if gt_text in pred_texts:
+                    correct_text_num += 1
 
                 for gt_head in gt_head_texts:
                     if gt_head in pred_head_texts:
                         correct_head_num += 1
             # use span
-            all_pred_list.extend(pred_list_copy)
+            all_pred_list.extend(copy.deepcopy(pred_list))
             all_gt_list.extend(gt_list)
 
         for gt_span in all_gt_list:

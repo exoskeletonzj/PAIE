@@ -19,12 +19,11 @@ class BaseEvaluator:
         self.cfg = cfg
         self.eval_loader = data_loader
         self.model = model
-        self._init_metric(metric_fn_dict)
+        self.metric_fn_dict = metric_fn_dict
 
     
-    def _init_metric(self, metric_fn_dict):
-        self.metric_fn_dict = metric_fn_dict
-        # self.metric_val_dict = {metric:None for metric in metric_fn_dict}
+    def _init_metric(self):
+        self.metric_val_dict = {metric:None for metric in self.metric_fn_dict}
 
 
     def calculate_one_batch(self, batch):
@@ -42,6 +41,7 @@ class BaseEvaluator:
     def evaluate(self):
         self.model.eval()
         self.build_and_clean_record()
+        self._init_metric()
         for batch in self.eval_loader:
             self.evaluate_one_batch(batch)
         output = self.predict()
@@ -123,7 +123,7 @@ class Evaluator(BaseEvaluator):
     def predict(self):
         for feature in self.features:
             feature.init_pred()
-            feature.set_gt(self.cfg.model_type)
+            feature.set_gt(self.cfg.model_type, self.cfg.dataset_type)
 
         if "paie" in self.cfg.model_type:
             pred_list = []
@@ -134,23 +134,21 @@ class Evaluator(BaseEvaluator):
             for (pred, feature_id, role) in zip(pred_list, self.record["feature_id_list"], self.record["role_list"]):
                 pred_span = (pred[0].item(), pred[1].item())
                 feature = self.features[feature_id]
-                feature.add_pred(role, pred_span)
+                feature.add_pred(role, pred_span, self.cfg.dataset_type)
         else:
             for feature_id, role, start_logit, end_logit in zip(
                 self.record["feature_id_list"], self.record["role_list"], self.record["full_start_logit_list"], self.record["full_end_logit_list"]
             ):
                 feature = self.features[feature_id]
                 answer_span_pred_list = get_best_index(feature, start_logit, end_logit, self.cfg.max_span_length, self.cfg.max_span_num, self.cfg.th_delta)
-                feature.add_pred(role, answer_span_pred_list)
+                feature.add_pred(role, answer_span_pred_list, self.cfg.dataset_type)
 
-        original_features = copy.deepcopy(self.features)     # After eval_score, the span recorded in features will be changed. We want to keep the original value for further evaluation.
-        perf_span, perf_text, perf_identify, perf_head = eval_score_std_span_full_metrics(self.features, self.cfg.dataset_type)
-        logger.info('SPAN-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_span[3], perf_span[0], perf_span[1], perf_span[2]))
-        logger.info('TEXT-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_text[3], perf_text[0], perf_text[1], perf_text[2]))
-        logger.info('IDEN-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_identify[3], perf_identify[0], perf_identify[1], perf_identify[2]))
-        logger.info('HEAD-EVAL {} ({}): R {} P {} F {}'.format(self.set_type, perf_head[3], perf_head[0], perf_head[1], perf_head[2]))
+        for metric, eval_fn in self.metric_fn_dict.items():
+            perf_c, perf_i = eval_fn(self.features)
+            self.metric_val_dict[metric] = (perf_c, perf_i)
+            logger.info('{}-Classification. {} ({}): R {} P {} F {}'.format(
+                metric, self.set_type, perf_c['gt_num'], perf_c['recall'], perf_c['precision'], perf_c['f1']))
+            logger.info('{}-Identification. {} ({}): R {} P {} F {}'.format(
+                metric, self.set_type, perf_i['gt_num'], perf_i['recall'], perf_i['precision'], perf_i['f1']))
 
-        return perf_span, perf_text, original_features
-        
-
-        
+        return self.metric_val_dict['span']
