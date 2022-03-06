@@ -4,10 +4,6 @@ if os.environ.get('DEBUG', False): print('\033[92m'+'Running code in DEBUG mode'
 import os.path as osp
 import logging
 
-import ipdb
-import copy
-import torch
-import torch.nn as nn
 from transformers import AdamW, get_linear_schedule_with_warmup
 
 from models import build_model
@@ -23,11 +19,11 @@ def train(args, model, processor):
     set_seed(args)
 
     logger.info("train dataloader generation")
-    train_examples, train_features, train_dataloader = processor.generate_dataloader('train')
+    train_examples, train_features, train_dataloader, args.train_invalid_num = processor.generate_dataloader('train')
     logger.info("dev dataloader generation")
-    dev_examples, dev_features, dev_dataloader = processor.generate_dataloader('dev')
+    dev_examples, dev_features, dev_dataloader, args.dev_invalid_num = processor.generate_dataloader('dev')
     logger.info("test dataloader generation")
-    test_examples, test_features, test_dataloader = processor.generate_dataloader('test')
+    test_examples, test_features, test_dataloader, args.test_invalid_num = processor.generate_dataloader('test')
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
@@ -55,7 +51,6 @@ def main():
     from config_parser import get_args_parser
     args = get_args_parser()
 
-    
     print(f"Output full path {osp.join(os.getcwd(), args.output_dir)}")
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
@@ -65,7 +60,6 @@ def main():
         format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', \
         datefmt = '%m/%d/%Y %H:%M:%S', level = logging.INFO
         )
-    # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     set_seed(args)
 
     model, tokenizer, config = build_model(args, args.model_type) 

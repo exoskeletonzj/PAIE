@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ACE_event:
+class Event:
     def __init__(self, doc_id, sent_id, sent, event_type, event_trigger, event_args, full_text, first_word_locs=None):
         self.doc_id = doc_id
         self.sent_id = sent_id
@@ -106,6 +106,7 @@ class DSET_processor:
         self.args = args
         self.tokenizer = tokenizer
         self.template_dict, self.argument_dict = self._read_template(self.args.template_path)
+        self.collate_fn = None
 
 
     def _read_jsonlines(self, input_file):
@@ -139,7 +140,7 @@ class DSET_processor:
         return template_dict, argument_dict
 
 
-    def _create_example_eeqa(self, lines):
+    def _create_example_ace(self, lines):
         examples = []
         for line in lines:
             if not line['event']:
@@ -165,55 +166,7 @@ class DSET_processor:
                     arg['role'] = role; arg['text'] = " ".join(text[start:end])
                     event_args.append(arg)
 
-                examples.append(ACE_event(event_idx, None, text, event_type, event_trigger, event_args, full_text))
-            
-        print("{} examples collected.".format(len(examples)))
-        # ipdb.set_trace()
-        return examples
-
-    
-    def _create_example_rams_full_doc(self, lines):
-        # maximum doc length is 543 in train (max input ids 803), 394 in dev, 478 in test
-        # too long, so we only use sentences contains current trigger and args
-        examples = []
-        for line in lines:
-            doc_key = line["doc_key"]
-            if len(line["evt_triggers"]) == 0:
-                continue
-            
-            events = line["evt_triggers"]
-            text_tmp = []
-            first_word_locs = []
-            for i, sent in enumerate(line["sentences"]):
-                first_word_locs.append(len(text_tmp))
-                text_tmp += sent
-
-            full_text = copy.deepcopy(list(chain(*line['sentences'])))
-
-            for event_idx, event in enumerate(events):
-                event_trigger = dict()
-                event_trigger['start'] = event[0]
-                event_trigger['end'] = event[1]+1
-                event_trigger['text'] = " ".join(text_tmp[event_trigger['start']:event_trigger['end']])
-
-                event_type = event[2][0][0]
-                event_trigger['offset'] = 0
-                event_args = list()
-                for arg_info in line["gold_evt_links"]:
-                    if arg_info[0][0] == event[0] and arg_info[0][1] == event[1]:  # match trigger span    
-                        evt_arg = dict()
-                        evt_arg['start'] = arg_info[1][0]
-                        evt_arg['end'] = arg_info[1][1]+1
-                        evt_arg['role'] = arg_info[2].split('arg', maxsplit=1)[-1][2:]
-                        evt_arg['text'] = " ".join(text_tmp[evt_arg['start']:evt_arg['end']])
-                        event_args.append(evt_arg)
-
-                text=text_tmp
-                
-                if event_idx > 0:
-                    examples.append(ACE_event(doc_key+str(event_idx), None, text, event_type, event_trigger, event_args, full_text, first_word_locs))
-                else:
-                    examples.append(ACE_event(doc_key, None, text, event_type, event_trigger, event_args, full_text, first_word_locs))
+                examples.append(Event(event_idx, None, text, event_type, event_trigger, event_args, full_text))
             
         print("{} examples collected.".format(len(examples)))
         return examples
@@ -224,10 +177,10 @@ class DSET_processor:
         # too long, so we use a window to cut the sentences.
         W = self.args.window_size
         assert(W%2==0)
-        invalid_args_num, all_args_num = 0, 0
+        all_args_num = 0
 
         examples = []
-        for i, line in enumerate(lines):
+        for line in lines:
             if len(line["evt_triggers"]) == 0:
                 continue
             doc_key = line["doc_key"]
@@ -239,7 +192,7 @@ class DSET_processor:
 
             text_tmp = []
             first_word_locs = []
-            for i, sent in enumerate(line["sentences"]):
+            for sent in line["sentences"]:
                 first_word_locs.append(len(text_tmp))
                 text_tmp += sent
 
@@ -275,57 +228,28 @@ class DSET_processor:
                         evt_arg['text'] = " ".join(full_text[evt_arg['start']:evt_arg['end']])
                         evt_arg['role'] = arg_info[2].split('arg', maxsplit=1)[-1][2:]
                         if evt_arg['start']<min_s or evt_arg['end']>max_e:
-                            invalid_args_num += 1
+                            self.invalid_arg_num += 1
                         else:
                             evt_arg['start'] -= offset
                             evt_arg['end'] -= offset 
                             event_args.append(evt_arg)
 
                 if event_idx > 0:
-                    examples.append(ACE_event(doc_key+str(event_idx), None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
+                    examples.append(Event(doc_key+str(event_idx), None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
                 else:
-                    examples.append(ACE_event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
+                    examples.append(Event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
             
-        discount_factor = 1-invalid_args_num/all_args_num
-        print("{} examples collected.".format(len(examples)))
-        print("Discount factor:{}".format(discount_factor))
+        print("{} examples collected. {} dropped.".format(len(examples), self.invalid_arg_num))
         return examples
 
-
-    def _create_example_oneie(self, lines):
-        examples = []
-        for line in lines:
-            doc_id = line['doc_id']
-            sent_id = line['sent_id']
-            text = line['tokens']
-            full_text = copy.deepcopy(line['tokens'])
-            entities = {entity["id"]:entity for entity in line['entity_mentions']}
-            events = line['event_mentions']
-            for event in events:
-                event_type = event['event_type']
-                event_trigger = event['trigger']
-                event_args = event['arguments']
-                for arg in event_args:
-                    entity_id = arg['entity_id']
-                    start, end = entities[entity_id]['start'], entities[entity_id]['end']
-                    arg.update({
-                        "start": start,
-                        "end": end,
-                    })
-
-                examples.append(ACE_event(doc_id, sent_id, text, event_type, event_trigger, event_args, full_text))
-        
-        print("{} examples collected.".format(len(examples)))
-        return examples
-    
 
     def _create_example_wikievent(self, lines):
         W = self.args.window_size
         assert(W%2==0)
-        invalid_args_num, all_args_num = 0, 0
+        all_args_num = 0
 
         examples = []
-        for i, line in enumerate(lines):
+        for line in lines:
             entity_dict = {entity['id']:entity for entity in line['entity_mentions']}
             events = line["event_mentions"]
             if not events:
@@ -336,7 +260,7 @@ class DSET_processor:
 
             curr_loc = 0
             first_word_locs = []
-            for i, sent in enumerate(line["sentences"]):
+            for sent in line["sentences"]:
                 first_word_locs.append(curr_loc)
                 curr_loc += len(sent[0])
 
@@ -376,33 +300,25 @@ class DSET_processor:
                     evt_arg['text'] = arg_info['text']
                     evt_arg['role'] = arg_info['role']
                     if evt_arg['start']<min_s or evt_arg['end']>max_e:
-                        invalid_args_num += 1
-                        #logger.info(i, min_s, max_e, offset, event_trigger, arg_entity, evt_arg)
+                        self.invalid_arg_num += 1
                     else:
                         evt_arg['start'] -= offset
                         evt_arg['end'] -= offset 
                         event_args.append(evt_arg)
-                examples.append(ACE_event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
+                examples.append(Event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
 
-        discount_factor = 1-invalid_args_num/all_args_num
-        logger.info("{} examples collected.".format(len(examples)))
-        logger.info("Discount factor:{}".format(discount_factor))
+        logger.info("{} examples collected. {} dropped.".format(len(examples), self.invalid_arg_num))
         return examples
 
 
     def create_example(self, file_path):
+        self.invalid_arg_num = 0
         if self.args.dataset_type=='ace_eeqa':
             lines = self._read_jsonlines(file_path)
-            return self._create_example_eeqa(lines)
-        elif self.args.dataset_type=='ace_oneie':
-            lines = self._read_jsonlines(file_path)
-            return self._create_example_oneie(lines)
+            return self._create_example_ace(lines)
         elif self.args.dataset_type=='rams':
             lines = self._read_jsonlines(file_path)
             return self._create_example_rams(lines)
-        elif self.args.dataset_type=='rams_full_doc':
-            lines = self._read_jsonlines(file_path)
-            return self._create_example_rams_full_doc(lines)
         elif self.args.dataset_type=='wikievent':
             lines = self._read_jsonlines(file_path)
             return self._create_example_wikievent(lines)
@@ -417,7 +333,6 @@ class DSET_processor:
             event_type = example.type
             event_args = example.args
             event_trigger = example.trigger['text']
-            trigger_start, trigger_end = example.trigger['start'], example.trigger['end']
             event_args_name = [arg['role'] for arg in event_args]
             enc_text = " ".join(sent)
 
@@ -437,7 +352,7 @@ class DSET_processor:
                 enc_input_ids.append(self.tokenizer.pad_token_id)
                 enc_mask_ids.append(self.args.pad_mask_token)
             
-            for old_tok_idx, char_idx in enumerate(old_tok_to_char_index):
+            for char_idx in old_tok_to_char_index:
                 new_tok = enc.char_to_token(char_idx)
                 old_tok_to_new_tok_index.append(new_tok)    
     
@@ -507,24 +422,6 @@ class DSET_processor:
         return dataset
 
 
-    def load_and_cache_examples(self, file_path, cache_path):
-        if not os.path.exists(cache_path) or not self.args.use_cache:
-            examples = self.create_example(file_path)
-            pickle.dump(examples, open(cache_path, 'wb'))
-        else:
-            examples = pickle.load(open(cache_path, 'rb'))
-        return examples
-
-    
-    def load_and_cache_features(self, examples, cache_path):
-        if not os.path.exists(cache_path) or not self.args.use_cache:
-            features = self.convert_examples_to_features(examples)
-            pickle.dump(features, open(cache_path, 'wb'))
-        else:
-            features = pickle.load(open(cache_path, 'rb'))
-        return features
-        
-
     def generate_dataloader(self, set_type):
         assert (set_type in ['train', 'dev', 'test'])
         if not os.path.exists(self.args.cache_path):
@@ -538,15 +435,16 @@ class DSET_processor:
         else:
             file_path = self.args.test_file
         
-        examples = self.load_and_cache_examples(file_path, cache_event_path)
-        features = self.load_and_cache_features(examples, cache_feature_path)
+        examples = self.create_example(file_path)
+        features = self.convert_examples_to_features(examples)
         dataset = self.convert_features_to_dataset(features)
 
         if set_type != 'train':
-            # Note that DistributedSampler samples randomly
             dataset_sampler = SequentialSampler(dataset)
         else:
             dataset_sampler = RandomSampler(dataset)
-        dataloader = DataLoader(dataset, sampler=dataset_sampler, batch_size=self.args.batch_size)
-        
-        return examples, features, dataloader
+        if self.collate_fn:
+            dataloader = DataLoader(dataset, sampler=dataset_sampler, batch_size=self.args.batch_size, collate_fn=self.collate_fn)
+        else:
+            dataloader = DataLoader(dataset, sampler=dataset_sampler, batch_size=self.args.batch_size)
+        return examples, features, dataloader, self.invalid_arg_num

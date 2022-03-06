@@ -20,7 +20,7 @@ def eval_rpf(gt_num, pred_num, correct_num):
     return res
 
 
-def eval_std_f1_score(features):
+def eval_std_f1_score(features, invalid_gt_num=0):
     gt_num, pred_num, correct_num = 0, 0, 0
     gt_num_identify, pred_num_identify, correct_identify_num = 0, 0, 0
     
@@ -48,12 +48,12 @@ def eval_std_f1_score(features):
             if gt_span in all_pred_list:
                 correct_identify_num += 1
         
-    res_classification = eval_rpf(gt_num, pred_num, correct_num)
-    res_identification = eval_rpf(gt_num_identify, pred_num_identify, correct_identify_num)
+    res_classification = eval_rpf(gt_num+invalid_gt_num, pred_num, correct_num)
+    res_identification = eval_rpf(gt_num_identify+invalid_gt_num, pred_num_identify, correct_identify_num)
     return res_classification, res_identification
 
 
-def eval_text_f1_score(features):
+def eval_text_f1_score(features, invalid_gt_num=0):
     gt_num, pred_num, correct_num = 0, 0, 0
     gt_num_identify, pred_num_identify, correct_identify_num = 0, 0, 0
 
@@ -88,12 +88,12 @@ def eval_text_f1_score(features):
             if gt_span in all_pred_list:
                 correct_identify_num += 1
         
-    res_classification = eval_rpf(gt_num, pred_num, correct_num)
-    res_identification = eval_rpf(gt_num_identify, pred_num_identify, correct_identify_num)
+    res_classification = eval_rpf(gt_num+invalid_gt_num, pred_num, correct_num)
+    res_identification = eval_rpf(gt_num_identify+invalid_gt_num, pred_num_identify, correct_identify_num)
     return res_classification, res_identification
 
 
-def eval_head_f1_score(features):
+def eval_head_f1_score(features, invalid_gt_num=0):
     gt_num, pred_num, correct_num = 0, 0, 0
     gt_num_identify, pred_num_identify, correct_identify_num = 0, 0, 0
     last_full_text = None
@@ -135,8 +135,8 @@ def eval_head_f1_score(features):
             if gt_span in all_pred_list:
                 correct_identify_num += 1
         
-    res_classification = eval_rpf(gt_num, pred_num, correct_num)
-    res_identification = eval_rpf(gt_num_identify, pred_num_identify, correct_identify_num)
+    res_classification = eval_rpf(gt_num+invalid_gt_num, pred_num, correct_num)
+    res_identification = eval_rpf(gt_num_identify+invalid_gt_num, pred_num_identify, correct_identify_num)
     return res_classification, res_identification
 
 

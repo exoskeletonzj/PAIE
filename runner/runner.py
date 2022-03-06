@@ -42,7 +42,8 @@ class BaseRunner:
             model=model,
             metric_fn_dict=metric_fn_dict,
             features=self.dev_features,
-            set_type = "DEV"
+            set_type = "DEV",
+            invalid_num=self.cfg.dev_invalid_num,
         )
         self.test_evaluator = Evaluator(
             cfg=self.cfg,
@@ -50,7 +51,8 @@ class BaseRunner:
             model=model,
             metric_fn_dict=metric_fn_dict,
             features=self.test_features,
-            set_type = "TEST"
+            set_type = "TEST",
+            invalid_num=self.cfg.test_invalid_num,
         )
 
 

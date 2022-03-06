@@ -71,10 +71,12 @@ class Evaluator(BaseEvaluator):
         metric_fn_dict=None,
         features=None,
         set_type=None,
+        invalid_num=0,
     ):
         super().__init__(cfg, data_loader, model, metric_fn_dict)
         self.features = features
         self.set_type = set_type
+        self.invalid_num = invalid_num
 
     
     def convert_batch_to_inputs(self, batch):
@@ -142,7 +144,7 @@ class Evaluator(BaseEvaluator):
                 feature.add_pred(role, answer_span_pred_list, self.cfg.dataset_type)
 
         for metric, eval_fn in self.metric_fn_dict.items():
-            perf_c, perf_i = eval_fn(self.features)
+            perf_c, perf_i = eval_fn(self.features, self.invalid_num)
             self.metric_val_dict[metric] = (perf_c, perf_i)
             logger.info('{}-Classification. {} ({}): R {} P {} F {}'.format(
                 metric, self.set_type, perf_c['gt_num'], perf_c['recall'], perf_c['precision'], perf_c['f1']))

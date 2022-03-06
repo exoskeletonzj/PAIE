@@ -2,13 +2,11 @@ import os
 import re
 import ipdb
 import torch
-import pickle
 import numpy as np
 
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
-
 from .processor_base import DSET_processor
-import random
+
 
 _PREDEFINED_QUERY_TEMPLATE = {
     "arg_trigger": "Argument: {arg:}. Trigger: {trigger:} ",
@@ -159,7 +157,8 @@ class ArgumentExtractionDataset(Dataset):
     def __getitem__(self, idx):
         return self.features[idx]
  
-    def collate_fn(self, batch):
+    @staticmethod
+    def collate_fn(batch):
         
         enc_input_ids = torch.tensor([f.enc_input_ids for f in batch])
         enc_mask_ids = torch.tensor([f.enc_mask_ids for f in batch])
@@ -191,9 +190,7 @@ class ArgumentExtractionDataset(Dataset):
 
         target_info = [f.target_info for f in batch]
         old_tok_to_new_tok_index = [f.old_tok_to_new_tok_index for f in batch]
-
         arg_joint_prompt = [f.arg_joint_prompt for f in batch]
-        
         arg_lists = [f.arg_list for f in batch ]
 
         return enc_input_ids, enc_mask_ids, \
@@ -209,6 +206,7 @@ class MultiargProcessor(DSET_processor):
     def __init__(self, args, tokenizer):
         super().__init__(args, tokenizer) 
         self.set_dec_input()
+        self.collate_fn = ArgumentExtractionDataset.collate_fn
     
 
     def set_dec_input(self):
@@ -315,7 +313,7 @@ class MultiargProcessor(DSET_processor):
                 else:
                     raise ValueError(f"no prompt provided for event: {event_type}")
             else:
-                dec_prompt_text, dec_prompt_ids, dec_prompt_mask_ids=None,None,None
+                dec_prompt_text, dec_prompt_ids, dec_prompt_mask_ids = None, None, None
                 
             arg_list = self.argument_dict[event_type.replace(':', '.')] 
             # NOTE: Large change - original only keep one if multiple span for one arg role
@@ -334,13 +332,13 @@ class MultiargProcessor(DSET_processor):
 
                 if self.arg_query:
                     arg_query = self.create_dec_qury(arg, event_trigger[0], event_type)
-
                 if self.prompt_query:
                     prompt_slots = {
                         "tok_s":list(), "tok_e":list(),
                     }
                     
-                    for matching_result in re.finditer(r'\b'+re.escape(arg)+r'\b', dec_prompt_text.split('.')[0]): # Using this more accurate regular expression might further improve rams results
+                    # Using this more accurate regular expression might further improve rams results
+                    for matching_result in re.finditer(r'\b'+re.escape(arg)+r'\b', dec_prompt_text.split('.')[0]): 
                         char_idx_s, char_idx_e = matching_result.span(); char_idx_e -= 1
                         tok_prompt_s = dec_prompt.char_to_token(char_idx_s)
                         tok_prompt_e = dec_prompt.char_to_token(char_idx_e) + 1
@@ -399,49 +397,29 @@ class MultiargProcessor(DSET_processor):
     def convert_features_to_dataset(self, features):
         dataset = ArgumentExtractionDataset(features)
         return dataset
+   
 
-
-    def load_and_cache_examples(self, file_path, cache_path):
-        if not os.path.exists(cache_path) or os.environ.get("DEBUG", False) or not self.args.use_cache:
-            # print('\033[92m'+'not loading cache examples'+'\033[0m')
-            examples = self.create_example(file_path)
-            pickle.dump(examples, open(cache_path, 'wb'))
-        else:
-            examples = pickle.load(open(cache_path, 'rb'))
-        return examples
-
-    
-    def load_and_cache_features(self, examples, cache_path):
-        if not os.path.exists(cache_path) or os.environ.get("DEBUG", False) or not self.args.use_cache:
-            # print('\033[92m'+'not loading cache features'+'\033[0m')
-            features = self.convert_examples_to_features(examples)
-            pickle.dump(features, open(cache_path, 'wb'))
-        else:
-            features = pickle.load(open(cache_path, 'rb'))
-        return features
+    # def generate_dataloader(self, set_type):
+    #     assert (set_type in ['train', 'dev', 'test'])
+    #     if not os.path.exists(self.args.cache_path):
+    #         os.makedirs(self.args.cache_path)
+    #     cache_event_path = os.path.join(self.args.cache_path, "{}_events.pkl".format(set_type))
+    #     cache_feature_path = os.path.join(self.args.cache_path, "{}_features.pkl".format(set_type))
+    #     if set_type=='train':
+    #         file_path = self.args.train_file
+    #     elif set_type=='dev':
+    #         file_path = self.args.dev_file
+    #     else:
+    #         file_path = self.args.test_file
         
+    #     examples = self.load_and_cache_examples(file_path, cache_event_path)
+    #     features = self.load_and_cache_features(examples, cache_feature_path)
+    #     dataset = self.convert_features_to_dataset(features)
 
-    def generate_dataloader(self, set_type):
-        assert (set_type in ['train', 'dev', 'test'])
-        if not os.path.exists(self.args.cache_path):
-            os.makedirs(self.args.cache_path)
-        cache_event_path = os.path.join(self.args.cache_path, "{}_events.pkl".format(set_type))
-        cache_feature_path = os.path.join(self.args.cache_path, "{}_features.pkl".format(set_type))
-        if set_type=='train':
-            file_path = self.args.train_file
-        elif set_type=='dev':
-            file_path = self.args.dev_file
-        else:
-            file_path = self.args.test_file
-        
-        examples = self.load_and_cache_examples(file_path, cache_event_path)
-        features = self.load_and_cache_features(examples, cache_feature_path)
-        dataset = self.convert_features_to_dataset(features)
+    #     if set_type != 'train':
+    #         dataset_sampler = SequentialSampler(dataset)
+    #     else:
+    #         dataset_sampler = RandomSampler(dataset)
+    #     dataloader = DataLoader(dataset, sampler=dataset_sampler, batch_size=self.args.batch_size, collate_fn=dataset.collate_fn)
 
-        if set_type != 'train':
-            dataset_sampler = SequentialSampler(dataset)
-        else:
-            dataset_sampler = RandomSampler(dataset)
-        dataloader = DataLoader(dataset, sampler=dataset_sampler, batch_size=self.args.batch_size, collate_fn=dataset.collate_fn)
-
-        return examples, features, dataloader
+    #     return examples, features, dataloader
