@@ -1,10 +1,12 @@
+import re
 import time
-import torch
+import string
 import random
+import logging
+logger = logging.getLogger(__name__)
+import torch
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-import re
-import string
 
 
 EXTERNAL_TOKENS = ['<t>', '</t>']
@@ -17,20 +19,6 @@ def set_seed(args):
     torch.manual_seed(args.seed)
 
 
-def read_prompt_group(prompt_path):
-    with open(prompt_path) as f:
-        lines = f.readlines()
-    prompts = dict()
-    for line in lines:
-        if not line:
-            continue
-        event_type, prompt = line.split(":")
-        prompts[event_type] = prompt
-    return prompts
-
-
-import logging
-logger = logging.getLogger(__name__)
 def count_time(f):
     def run(**kw):
         time1 = time.time()

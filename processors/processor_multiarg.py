@@ -215,8 +215,9 @@ class MultiargProcessor(DSET_processor):
             raise NotImplementedError(f"Unexpected setting {self.args.model_type}")
      
 
-    def _read_prompt_group(self):
-        with open(self.args.prompt_path) as f:
+    @staticmethod
+    def _read_prompt_group(prompt_path):
+        with open(prompt_path) as f:
             lines = f.readlines()
         prompts = dict()
         for line in lines:
@@ -247,7 +248,7 @@ class MultiargProcessor(DSET_processor):
 
     def convert_examples_to_features(self, examples):
         if self.prompt_query:
-            prompts = self._read_prompt_group()
+            prompts = self._read_prompt_group(self.args.prompt_path)
 
         if os.environ.get("DEBUG", False): counter = [0, 0, 0]
         features = []

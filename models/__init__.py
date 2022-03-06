@@ -8,7 +8,7 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 
 from .paie import PAIE
 from .single_prompt import BartSingleArg
-from utils import read_prompt_group
+from processors.processor_multiarg import MultiargProcessor
 
 
 MODEL_CLASSES = {
@@ -38,7 +38,7 @@ def build_model(args, model_type):
 
     # Add trigger special tokens and continuous token (maybe in prompt)
     new_token_list = ['<t>', '</t>']
-    prompts = read_prompt_group(args.prompt_path)
+    prompts = MultiargProcessor._read_prompt_group(args.prompt_path)
     for event_type, prompt in prompts.items():
         token_list = prompt.split()
         for token in token_list:
