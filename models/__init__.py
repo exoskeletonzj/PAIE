@@ -1,17 +1,21 @@
 import sys
 sys.path.append("../")
 import logging
+logger = logging.getLogger(__name__)
+
 from transformers import BartConfig, BartTokenizerFast
+from transformers import AdamW, get_linear_schedule_with_warmup
+
 from .paie import PAIE
 from .single_prompt import BartSingleArg
 from utils import read_prompt_group
+
 
 MODEL_CLASSES = {
     'paie': (BartConfig, PAIE, BartTokenizerFast),
     'base': (BartConfig, BartSingleArg, BartTokenizerFast)
 }
 
-logger = logging.getLogger(__name__)
 
 def build_model(args, model_type):
     config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -42,6 +46,15 @@ def build_model(args, model_type):
                 new_token_list.append(token)
     tokenizer.add_tokens(new_token_list)   
     logger.info("Add tokens: {}".format(new_token_list))      
-
     model.resize_token_embeddings(len(tokenizer))
-    return model, tokenizer, config
+
+    # Prepare optimizer and schedule (linear warmup and decay)
+    no_decay = ['bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
+        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.max_steps*args.warmup_steps, num_training_steps=args.max_steps)
+
+    return model, tokenizer, optimizer, scheduler

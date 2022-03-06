@@ -1,21 +1,19 @@
 import os
+from sched import scheduler
 os.environ['MKL_SERVICE_FORCE_INTEL'] = "1"
 if os.environ.get('DEBUG', False): print('\033[92m'+'Running code in DEBUG mode'+'\033[0m')
 import os.path as osp
 import logging
 
-from transformers import AdamW, get_linear_schedule_with_warmup
-
 from models import build_model
 from processors import build_processor
-
 from utils import set_seed
 from runner.runner import Runner
 
 logger = logging.getLogger(__name__)
 
 
-def train(args, model, processor):
+def run(args, model, processor, optimizer, scheduler):
     set_seed(args)
 
     logger.info("train dataloader generation")
@@ -24,15 +22,6 @@ def train(args, model, processor):
     dev_examples, dev_features, dev_dataloader, args.dev_invalid_num = processor.generate_dataloader('dev')
     logger.info("test dataloader generation")
     test_examples, test_features, test_dataloader, args.test_invalid_num = processor.generate_dataloader('test')
-
-    # Prepare optimizer and schedule (linear warmup and decay)
-    no_decay = ['bias', 'LayerNorm.weight']
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.max_steps*args.warmup_steps, num_training_steps=args.max_steps)
 
     runner = Runner(
         cfg=args,
@@ -62,13 +51,13 @@ def main():
         )
     set_seed(args)
 
-    model, tokenizer, config = build_model(args, args.model_type) 
+    model, tokenizer, optimizer, scheduler = build_model(args, args.model_type) 
     model.to(args.device)
 
     processor = build_processor(args, tokenizer)
 
     logger.info("Training/evaluation parameters %s", args)
-    train(args, model, processor)
+    run(args, model, processor, optimizer, scheduler)
             
 
 if __name__ == "__main__":
