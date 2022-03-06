@@ -76,7 +76,7 @@ class InputFeatures(object):
             if span!=(0, 0):
                 if role not in self.pred_dict_word:
                     self.pred_dict_word[role] = list()
-                word_span = self.get_word_span(span, dset_type)
+                word_span = self.get_word_span(span, dset_type)         # convert token span to word span 
                 if word_span not in self.pred_dict_word[role]:
                     self.pred_dict_word[role].append(word_span)
 

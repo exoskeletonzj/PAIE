@@ -2,10 +2,10 @@ import os
 import sys
 sys.path.append("../")
 import logging
-from utils import show_results
 from runner.train import Trainer
 from runner.evaluate import Evaluator
-from runner.metric import eval_std_f1_score, eval_text_f1_score, eval_head_f1_score
+from runner.metric import eval_std_f1_score, eval_text_f1_score, eval_head_f1_score, show_results
+from runner.metric import eval_score_per_type, eval_score_per_argnum, eval_score_per_role, eval_score_per_dist
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,10 @@ class BaseRunner:
             os.makedirs(cpt_path)
         self.model.save_pretrained(cpt_path)
 
+    
+    def eval_and_update(self, global_step):
+        raise NotImplementedError()
+
 
 class Runner(BaseRunner):
     def __init__(self, cfg=None, data_samples=None, data_features=None, data_loaders=None, model=None, optimizer=None, scheduler=None, metric_fn_dict=None):
@@ -93,6 +97,7 @@ class Runner(BaseRunner):
         }
         self.dev_evaluator.metric_fn_dict = self.metric_fn_dict
         self.test_evaluator.metric_fn_dict = self.metric_fn_dict
+
 
     def eval_and_update(self, global_step):
         dev_c, _ = self.dev_evaluator.evaluate()
@@ -111,26 +116,26 @@ class Runner(BaseRunner):
             show_results(self.dev_features, os.path.join(self.cfg.output_dir, f'best_dev_results.log'), 
                 {"dev best score": f"P: {dev_c['precision']} R: {dev_c['precision']} f1: {dev_f1}", "global step": global_step}
             )
-            # eval_score_per_type(test_original_features, self.cfg.dataset_type, 
-            #     os.path.join(self.cfg.output_dir, f'results_per_type.txt'), 
-            # )
-            # eval_score_per_role(test_original_features, self.cfg.dataset_type, 
-            #     os.path.join(self.cfg.output_dir, f'results_per_role.txt'), 
-            # )
-            # if self.cfg.dataset_type=='ace_eeqa':
-            #     eval_score_per_argnum(dev_original_features, self.cfg.dataset_type, 
-            #         os.path.join(self.cfg.output_dir, f'dev_results_per_argnum.txt'), 
-            #     )
-            #     eval_score_per_argnum(test_original_features, self.cfg.dataset_type, 
-            #         os.path.join(self.cfg.output_dir, f'test_results_per_argnum.txt'), 
-            #     )
-            # else:
-            #     eval_score_per_dist(dev_original_features, self.dev_samples, self.cfg.dataset_type, 
-            #         os.path.join(self.cfg.output_dir, f'dev_results_per_dist.txt'), 
-            #     )
-            #     eval_score_per_dist(test_original_features, self.test_samples, self.cfg.dataset_type, 
-            #         os.path.join(self.cfg.output_dir, f'test_results_per_dist.txt'), 
-            #     )
+            eval_score_per_type(self.test_features, self.metric_fn_dict["span"], 
+                os.path.join(self.cfg.output_dir, f'results_per_type.txt'), 
+            )
+            eval_score_per_role(self.test_features, self.metric_fn_dict["span"],  
+                os.path.join(self.cfg.output_dir, f'results_per_role.txt'), 
+            )
+            if self.cfg.dataset_type=='ace_eeqa':
+                eval_score_per_argnum(self.dev_features, self.metric_fn_dict["span"], 
+                    os.path.join(self.cfg.output_dir, f'dev_results_per_argnum.txt'), 
+                )
+                eval_score_per_argnum(self.test_features, self.metric_fn_dict["span"],  
+                    os.path.join(self.cfg.output_dir, f'test_results_per_argnum.txt'), 
+                )
+            else:
+                eval_score_per_dist(self.dev_features, self.dev_samples, self.metric_fn_dict["span"],
+                    os.path.join(self.cfg.output_dir, f'dev_results_per_dist.txt'), 
+                )
+                eval_score_per_dist(self.test_features, self.test_samples, self.metric_fn_dict["span"],
+                    os.path.join(self.cfg.output_dir, f'test_results_per_dist.txt'), 
+                )
                 
             self.save_checkpoints()
         

@@ -1,8 +1,6 @@
-import copy
 import torch
 import logging
 from utils import get_best_indexes, get_best_index
-from utils import eval_score_std_span_full_metrics
 
 logger = logging.getLogger(__name__)
 

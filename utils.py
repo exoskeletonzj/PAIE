@@ -1,17 +1,10 @@
 import time
-import os
 import torch
 import random
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-import copy
 import re
 import string
-import spacy
-import logging
-
-
-logger = logging.getLogger(__name__)
 
 
 def set_seed(args):
@@ -32,6 +25,8 @@ def read_prompt_group(prompt_path):
     return prompts
 
 
+import logging
+logger = logging.getLogger(__name__)
 def count_time(f):
     def run(**kw):
         time1 = time.time()
@@ -72,30 +67,6 @@ def _normalize_answer(s):
     return s_normalized
 
 
-def _tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset):
-    span = list(span)
-    span[0] = min(span[0], max(new_tok_index_to_old_tok_index.keys()))
-    span[1] = max(span[1]-1, min(new_tok_index_to_old_tok_index.keys()))
-
-    while span[0] not in new_tok_index_to_old_tok_index:
-        span[0]+=1 
-    span_s = new_tok_index_to_old_tok_index[span[0]]+offset
-    while span[1] not in new_tok_index_to_old_tok_index:
-        span[1]-=1 
-    span_e = new_tok_index_to_old_tok_index[span[1]]+offset
-    while span_e < span_s:
-        span_e+=1
-    return (span_s, span_e)
-
-
-def _new_tok_id2old_tok_id(old_tok_to_new_tok_index):
-    new_tok_index_to_old_tok_index = dict()
-    for old_tok_id, (new_tok_id_s, new_tok_id_e) in enumerate(old_tok_to_new_tok_index):
-        for j in range(new_tok_id_s, new_tok_id_e):
-            new_tok_index_to_old_tok_index[j] = old_tok_id 
-    return new_tok_index_to_old_tok_index
-
-
 def get_sentence_idx(first_word_locs, word_loc):
     sent_idx = -1
     for i, first_word_loc in enumerate(first_word_locs):
@@ -104,240 +75,6 @@ def get_sentence_idx(first_word_locs, word_loc):
         else:
             break
     return sent_idx
-
-
-def eval_score_std_span(features, dset_type):
-    # evaluate both text and standard span in annotated word tokens
-    gt_num, pred_num, correct_num, correct_text = 0, 0, 0, 0 
-    
-    for feature in features:
-        for role in feature.arg_list:
-            pred_list = feature.pred_dict_word[role]
-            gt_list = feature.gt_dict_word[role]
-            pred_list_copy = copy.deepcopy(pred_list)
-
-            pred_num += len(pred_list)
-            gt_num += len(gt_list)
-            
-            if len(gt_list) != 0:
-                correct_list = []
-                for gt_span in gt_list:
-                    if gt_span in pred_list:
-                        correct_list.append(pred_list.pop(pred_list.index(gt_span)))
-                correct_num += len(correct_list)
-
-            full_text = feature.full_text
-            gt_texts = [_normalize_answer(" ".join(full_text[gt_span[0]: gt_span[1]+1])) for gt_span in gt_list]
-            #gt_texts = [" ".join(full_text[gt_span[0]: gt_span[1]+1]).lower().strip() for gt_span in gt_list]
-            if len(gt_texts) != 0:
-                pred_texts = [_normalize_answer(" ".join(full_text[pred_span[0]: pred_span[1]+1])) for pred_span in pred_list_copy]
-                #pred_texts = [" ".join(full_text[pred_span[0]: pred_span[1]+1]).lower().strip() for pred_span in pred_list_copy]
-                correct_list = []
-                for gt_text in gt_texts:
-                    if gt_text in pred_texts:
-                        correct_list.append(pred_texts.pop(pred_texts.index(gt_text)))
-                correct_text += len(correct_list)
-            
-    recall = correct_num/gt_num if gt_num!=0 else .0
-    precision = correct_num/pred_num if pred_num!=0 else .0
-    f1 = 2*recall*precision/(recall+precision) if (recall+precision)>1e-4 else .0
-
-    recall_text = correct_text/gt_num if gt_num!=0 else .0
-    precision_text = correct_text/pred_num if pred_num!=0 else .0
-    f1_text = 2*recall_text*precision_text/(recall_text+precision_text) if (recall_text+precision_text)>1e-4 else .0
-
-    return [recall, precision, f1, gt_num, pred_num, correct_num], [recall_text, precision_text, f1_text, gt_num, pred_num, correct_text]
-
-
-def eval_score_per_type(features, dset_type, output_file):
-    feature_per_type_dict = dict()
-    for feature in features:
-        event_type = feature.event_type
-        split_feature = copy.deepcopy(feature)
-        if event_type not in feature_per_type_dict:
-            feature_per_type_dict[event_type] = list()
-        feature_per_type_dict[event_type].append(split_feature)
-    
-    with open(output_file, 'w') as f:
-        for event_type in sorted(feature_per_type_dict.keys()):
-            perf_span, perf_text, perf_identify, perf_head = \
-                eval_score_std_span_full_metrics(feature_per_type_dict[event_type], dset_type)
-            f.write('{} : ({})\n'.format(event_type, perf_span[3]))
-            f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
-            f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
-            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
-            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
-            f.write('-------------------------------------------------------------------------\n')
-
-
-def eval_score_per_role(features, dset_type, output_file):
-    feature_per_role_dict = dict()
-    # Enumerate all possible roles first
-    for feature in features:
-        for role in feature.target_info:
-            if role not in feature_per_role_dict:
-                feature_per_role_dict[role] = list()
-            split_feature = copy.deepcopy(feature)
-            new_pred_dict = {r:split_feature.pred_dict[r] if r==role else list() for r in split_feature.pred_dict}
-            split_feature.pred_dict = new_pred_dict
-            new_gt_dict = {r:split_feature.gt_dict[r] if r==role else list() for r in split_feature.gt_dict}
-            split_feature.gt_dict = new_gt_dict
-                
-            feature_per_role_dict[role].append(split_feature)
-
-    with open(output_file, 'w') as f:
-        for role_type in sorted(feature_per_role_dict.keys()):
-            perf_span, perf_text, perf_identify, perf_head = \
-                eval_score_std_span_full_metrics(feature_per_role_dict[role_type], dset_type)
-            f.write('{} : ({})\n'.format(role_type, perf_span[3]))
-            f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
-            f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
-            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
-            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
-            f.write('-------------------------------------------------------------------------\n')
-
-
-def eval_score_per_argnum(features, dset_type, output_file):
-
-    def get_split_feature(feature, valid_argnum):
-        def f(x):
-            if x<=1:
-                return 1
-            elif x>=4:
-                return 4
-            else:
-                return x
-        split_feature = copy.deepcopy(feature)
-        for role in split_feature.target_info:
-            arg_num = 0
-            for idx, span in enumerate(split_feature.gt_dict[role]):
-                if span==(0, 0): 
-                    continue
-                arg_num += 1
-            if f(arg_num) != valid_argnum:
-                split_feature.gt_dict[role] = []
-                split_feature.pred_dict[role] = []
-        return split_feature
-
-    with open(output_file, 'w') as f:
-        for argnum in [1, 2, 3, 4]:
-            split_features = []
-            for feature in features:
-                split_features.append(get_split_feature(feature, argnum))
-            perf_span, perf_text, perf_identify, perf_head = eval_score_std_span_full_metrics(split_features, dset_type)
-            f.write("ARGNUM:{} ({})\n".format(argnum, perf_span[3]))
-            f.write('SPAN-EVAL: R {} P {} F {}\n'.format(perf_span[0], perf_span[1], perf_span[2]))
-            f.write('TEXT-EVAL: R {} P {} F {}\n'.format(perf_text[0], perf_text[1], perf_text[2]))
-            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
-            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
-            f.write('-------------------------------------------------------------------------\n')
-
-
-def eval_score_per_dist(features, examples, dset_type, output_file):
-
-    def get_split_feature(feature, first_word_locs, valid_range):
-        if isinstance(valid_range, int):
-            valid_range = [valid_range]
-        split_feature = copy.deepcopy(feature)
-
-        new_tok_index_to_old_tok_index = _new_tok_id2old_tok_id(feature.old_tok_to_new_tok_index)
-        offset = feature.event_trigger[2]
-
-        trigger_loc = get_sentence_idx(first_word_locs, feature.event_trigger[1][0])
-        for role in split_feature.target_info:
-            delete_idx_list = list()
-            for idx, span in enumerate(split_feature.pred_dict[role]):
-                if span==(0, 0): 
-                    continue
-                new_span = _tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset)
-                dist = get_sentence_idx(first_word_locs, new_span[0]) - trigger_loc
-                if dist not in valid_range:
-                    delete_idx_list.append(idx)
-            split_feature.pred_dict[role] = [v for idx, v in enumerate(split_feature.pred_dict[role]) if idx not in delete_idx_list]
-
-            delete_idx_list = list()
-            for idx, span in enumerate(split_feature.gt_dict[role]):
-                if span==(0, 0): 
-                    continue
-                new_span = _tok_idx2word_idx(span, new_tok_index_to_old_tok_index, offset)
-                dist = get_sentence_idx(first_word_locs, new_span[0]) - trigger_loc
-                if dist not in valid_range:
-                    delete_idx_list.append(idx)
-            split_feature.gt_dict[role] = [v for idx, v in enumerate(split_feature.gt_dict[role]) if idx not in delete_idx_list]
-
-        return split_feature
-
-    example_dict = {example.doc_id:example for example in examples}
-    with open(output_file, 'w') as f:
-        for dist in [-2, -1, 0, 1, 2]:
-            split_features = []
-            for feature in features:
-                example = example_dict[feature.example_id]
-                first_word_locs = example.first_word_locs
-                split_features.append(get_split_feature(feature, first_word_locs, dist))
-            perf_span, perf_text, perf_identify, perf_head = \
-                eval_score_std_span_full_metrics(split_features, dset_type)
-            f.write("Dist:{} ({})\n".format(dist, perf_span[3]))
-            f.write('SPAN-EVAL: R {} P {} F {}'.format(perf_span[0], perf_span[1], perf_span[2]))
-            f.write('TEXT-EVAL: R {} P {} F {}'.format(perf_text[0], perf_text[1], perf_text[2]))
-            f.write('IDEN-EVAL: R {} P {} F {}\n'.format(perf_identify[0], perf_identify[1], perf_identify[2]))
-            f.write('HEAD-EVAL: R {} P {} F {}\n'.format(perf_head[0], perf_head[1], perf_head[2]))
-            f.write('-------------------------------------------------------------------------\n')
-
-
-def show_results(features, output_file, metainfo):
-    """ paie std show resuults """
-    with open(output_file, 'w', encoding='utf-8') as f:
-        for k,v in metainfo.items():
-            f.write(f"{k}: {v}\n")
-
-        for feature in features:
-            example_id = feature.example_id
-            
-            sent = feature.enc_text
-            f.write("-------------------------------------------------------------------------------------\n")
-            f.write("Sent: {}\n".format(sent))
-            f.write("Event type: {}\t\t\tTrigger word: {}\n".format(feature.event_type, feature.event_trigger))
-            f.write("Example ID {}\n".format(example_id))
-            full_text = feature.full_text
-            for arg_role in feature.arg_list:
-                 
-                pred_list = feature.pred_dict_word[arg_role] if arg_role in feature.pred_dict_word else list()
-                gt_list = feature.gt_dict_word[arg_role] if arg_role in feature.gt_dict_word else list()
-                if len(pred_list)==0 and len(gt_list)==0:
-                    continue
-                
-                if len(gt_list) == 0 and len(pred_list) > 0:
-                    gt_list = [(-1,-1)] * len(pred_list)
-                
-                if len(gt_list) > 0 and len(pred_list) == 0:
-                    pred_list = [(-1,-1)] * len(gt_list)
-
-                gt_idxs, pred_idxs = hungarian_matcher(gt_list, pred_list)
-
-                for pred_idx, gt_idx in zip(pred_idxs, gt_idxs):
-                    if gt_list[gt_idx] == (-1,-1) and pred_list[pred_idx] == (-1,-1):
-                        continue
-                    else:
-                        pred_text = " ".join(full_text[pred_list[pred_idx][0]: pred_list[pred_idx][1]+1]) if pred_list[pred_idx]!=(-1,-1) else "__ No answer __"
-                        gt_text = " ".join(full_text[gt_list[gt_idx][0]: gt_list[gt_idx][1]+1]) if gt_list[gt_idx]!=(-1,-1) else "__ No answer __"
-                    
-                    if gt_list[gt_idx] == pred_list[pred_idx]:
-                        f.write("Arg {} matched: Pred: {} ({},{})\tGt: {} ({},{})\n".format(arg_role, pred_text, pred_list[pred_idx][0], pred_list[pred_idx][1], gt_text, gt_list[gt_idx][0], gt_list[gt_idx][1]))
-                    else:
-                        f.write("Arg {} dismatched: Pred: {} ({},{})\tGt: {} ({},{})\n".format(arg_role, pred_text, pred_list[pred_idx][0], pred_list[pred_idx][1], gt_text, gt_list[gt_idx][0], gt_list[gt_idx][1]))
-                
-                if len(gt_idxs) < len(gt_list): # prediction  __no answer__
-                    for idx in range(len(gt_list)):
-                        if idx not in gt_idxs:
-                            gt_text = " ".join(full_text[gt_list[idx][0]: gt_list[idx][1]+1])
-                            f.write("Arg {} dismatched: Pred: {} ({},{})\tGt: {} ({},{})\n".format(arg_role, "__ No answer __", -1, -1, gt_text, gt_list[idx][0], gt_list[idx][1])) 
-
-                if len(pred_idxs) < len(pred_list): # ground truth  __no answer__
-                    for idx in range(len(pred_list)):
-                        if idx not in pred_idxs:
-                            pred_text = " ".join(full_text[pred_list[idx][0]: pred_list[idx][1]+1])
-                            f.write("Arg {} dismatched: Pred: {} ({},{})\tGt: {} ({},{})\n".format(arg_role, pred_text, pred_list[idx][0], pred_list[idx][1], "__ No answer __", -1, -1))
 
 
 def get_maxtrix_value(X):
@@ -454,7 +191,6 @@ class WhitespaceTokenizer:
 
 def find_head(arg_start, arg_end, doc):
     arg_end -= 1
-
     cur_i = arg_start
     while doc[cur_i].head.i >= arg_start and doc[cur_i].head.i <=arg_end:
         if doc[cur_i].head.i == cur_i:
@@ -465,76 +201,4 @@ def find_head(arg_start, arg_end, doc):
         
     arg_head = cur_i
     head_text = doc[arg_head]
-    
     return head_text
-
-
-def eval_score_std_span_full_metrics(features):
-    nlp = spacy.load('en_core_web_sm')
-    nlp.tokenizer = WhitespaceTokenizer(nlp.vocab)
-
-    # evaluate both text and standard span in annotated word tokens
-    gt_num, pred_num = 0, 0
-    correct_num, correct_text_num = 0, 0 
-    correct_head_num, correct_identify_num = 0, 0
-    
-    last_full_text = None
-    for feature in features:
-        all_pred_list = list()
-        all_gt_list = list()
-
-        for role in feature.arg_list:
-            gt_list = feature.gt_dict_word[role] if role in feature.gt_dict_word else list()
-            pred_list = list(set(feature.pred_dict_word[role])) if role in feature.pred_dict_word else list()
-            gt_num += len(gt_list)
-            pred_num += len(pred_list)
-            
-            for gt_span in gt_list:
-                if gt_span in pred_list:
-                    correct_num += 1
-
-            full_text = feature.full_text
-            if full_text!=last_full_text:
-                doc = nlp(" ".join(full_text))
-                last_full_text = full_text
-            gt_texts = [_normalize_answer(" ".join(full_text[gt_span[0]: gt_span[1]+1])) for gt_span in gt_list]
-            gt_head_texts = [str(find_head(gt_span[0], gt_span[1]+1, doc)) for gt_span in gt_list]
-
-            pred_texts = list(set([_normalize_answer(" ".join(full_text[pred_span[0]: pred_span[1]+1])) for pred_span in copy.deepcopy(pred_list)]))
-            pred_head_texts = list(set([str(find_head(pred_span[0], pred_span[1]+1, doc)) for pred_span in copy.deepcopy(pred_list)]))
-
-            for gt_text in gt_texts:
-                if gt_text in pred_texts:
-                    correct_text_num += 1
-
-                for gt_head in gt_head_texts:
-                    if gt_head in pred_head_texts:
-                        correct_head_num += 1
-            # use span
-            all_pred_list.extend(copy.deepcopy(pred_list))
-            all_gt_list.extend(gt_list)
-
-        for gt_span in all_gt_list:
-            if gt_span in all_pred_list:
-                all_pred_list.pop(all_pred_list.index(gt_span))
-                correct_identify_num+=1
-        
-    recall = correct_num/gt_num if gt_num!=0 else .0
-    precision = correct_num/pred_num if pred_num!=0 else .0
-    f1 = 2*recall*precision/(recall+precision) if (recall+precision)>1e-4 else .0
-
-    recall_text = correct_text_num/gt_num if gt_num!=0 else .0
-    precision_text = correct_text_num/pred_num if pred_num!=0 else .0
-    f1_text = 2*recall_text*precision_text/(recall_text+precision_text) if (recall_text+precision_text)>1e-4 else .0
-
-    recall_identify = correct_identify_num/gt_num if gt_num!=0 else .0
-    precision_identify = correct_identify_num/pred_num if pred_num!=0 else .0
-    f1_identify = 2*recall_identify*precision_identify/(recall_identify+precision_identify) if (recall_identify+precision_identify)>1e-4 else .0
-
-    recall_head = correct_head_num/gt_num if gt_num!=0 else .0
-    precision_head = correct_head_num/pred_num if pred_num!=0 else .0
-    f1_head = 2*recall_head*precision_head/(recall_head+precision_head) if (recall_head+precision_head)>1e-4 else .0
-
-    return [recall, precision, f1, gt_num, pred_num, correct_num], [recall_text, precision_text, f1_text, gt_num, pred_num, correct_text_num], \
-        [recall_identify, precision_identify, f1_identify, gt_num, pred_num, correct_identify_num], [recall_head, precision_head, f1_head, gt_num, pred_num, correct_head_num]
-
