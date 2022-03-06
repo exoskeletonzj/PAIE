@@ -105,7 +105,7 @@ class DSET_processor:
     def __init__(self, args, tokenizer):
         self.args = args
         self.tokenizer = tokenizer
-        self.template_dict, self.argument_dict = self._read_template(self.args.template_path)
+        self.template_dict, self.argument_dict = self._read_roles(self.args.role_path)
         self.collate_fn = None
 
 
@@ -122,22 +122,22 @@ class DSET_processor:
             return json.load(f)
 
 
-    def _read_template(self, template_path):
+    def _read_roles(self, role_path):
         template_dict = {}
-        argument_dict = {}
+        role_dict = {}
 
-        with open(template_path, "r", encoding='utf-8') as f:
+        with open(role_path, "r", encoding='utf-8') as f:
             csv_reader = csv.reader(f)
             for line in csv_reader:
                 event_type_arg, template = line
                 template_dict[event_type_arg] = template
                 
                 event_type, arg = event_type_arg.split('_')
-                if event_type not in argument_dict:
-                    argument_dict[event_type] = []
-                argument_dict[event_type].append(arg)
+                if event_type not in role_dict:
+                    role_dict[event_type] = []
+                role_dict[event_type].append(arg)
 
-        return template_dict, argument_dict
+        return template_dict, role_dict
 
 
     def _create_example_ace(self, lines):
@@ -239,7 +239,7 @@ class DSET_processor:
                 else:
                     examples.append(Event(doc_key, None, cut_text, event_type, event_trigger, event_args, full_text, first_word_locs))
             
-        print("{} examples collected. {} dropped.".format(len(examples), self.invalid_arg_num))
+        print("{} examples collected. {} arguments dropped.".format(len(examples), self.invalid_arg_num))
         return examples
 
 
@@ -424,10 +424,6 @@ class DSET_processor:
 
     def generate_dataloader(self, set_type):
         assert (set_type in ['train', 'dev', 'test'])
-        if not os.path.exists(self.args.cache_path):
-            os.makedirs(self.args.cache_path)
-        cache_event_path = os.path.join(self.args.cache_path, "{}_events.pkl".format(set_type))
-        cache_feature_path = os.path.join(self.args.cache_path, "{}_features.pkl".format(set_type))
         if set_type=='train':
             file_path = self.args.train_file
         elif set_type=='dev':

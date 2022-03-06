@@ -18,7 +18,7 @@ def build_model(args, model_type):
     config = config_class.from_pretrained(args.model_name_or_path)
     config.model_name_or_path = args.model_name_or_path
     config.device = args.device
-    config.prompt_context = args.prompt_context
+    config.context_representation = args.context_representation
 
     # length
     config.max_enc_seq_length = args.max_enc_seq_length
@@ -26,7 +26,7 @@ def build_model(args, model_type):
     config.max_prompt_seq_length=args.max_prompt_seq_length
     config.max_span_length = args.max_span_length
 
-    config.matching_method = args.matching_method
+    config.bipartite = args.bipartite
     config.matching_method_train = args.matching_method_train
 
     tokenizer = tokenizer_class.from_pretrained(args.model_name_or_path, add_special_tokens=True)

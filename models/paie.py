@@ -33,7 +33,7 @@ class PAIE(BartPretrainedModel):
         Args:
             multi args post calculation
         """
-        if self.config.prompt_context == 'decoder':
+        if self.config.context_representation == 'decoder':
             context_outputs = self.model(
                 enc_input_ids,
                 attention_mask=enc_mask_ids,
@@ -109,17 +109,15 @@ class PAIE(BartPretrainedModel):
                         target["span_s"] = target["span_s"] + [0] * pad_len
                         target["span_e"] = target["span_e"] + [0] * pad_len
                         
-                    if self.config.matching_method=='bipartite':
+                    if self.config.bipartite:
                         idx_preds, idx_targets = hungarian_matcher(predicted_spans, target_spans)
-                    elif self.config.matching_method=='no_bipartite':
+                    else:
                         idx_preds = list(range(len(predicted_spans)))
                         idx_targets = list(range(len(target_spans)))
                         if len(idx_targets) > len(idx_preds):
                             idx_targets = idx_targets[0:len(idx_preds)]
                         idx_preds = torch.as_tensor(idx_preds, dtype=torch.int64)
                         idx_targets = torch.as_tensor(idx_targets, dtype=torch.int64)
-                    else:
-                        raise AssertionError("Config param matching_method error!")
 
                     cnt += len(idx_preds)
                     start_loss = self.loss_fct(torch.stack(start_logits_list)[idx_preds], torch.LongTensor(target["span_s"]).to(self.config.device)[idx_targets])
