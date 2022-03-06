@@ -6,17 +6,7 @@ _DATASET_DIR = {
         "dev_file": './data/ace_eeqa/dev_convert.json', 
         "test_file": './data/ace_eeqa/test_convert.json'
     },
-    "ace_oneie":{
-        "train_file": './data/ace_oneie/train.oneie.json',
-        "dev_file": './data/ace_oneie/dev.oneie.json',
-        "test_file": './data/ace_oneie/test.oneie.json'
-    },
     'rams':{
-        "train_file": './data/RAMS_1.0/data/train.jsonlines',
-        "dev_file": './data/RAMS_1.0/data/dev.jsonlines',
-        "test_file": './data/RAMS_1.0/data/test.jsonlines'
-    },
-    'rams_full_doc':{
         "train_file": './data/RAMS_1.0/data/train.jsonlines',
         "dev_file": './data/RAMS_1.0/data/dev.jsonlines',
         "test_file": './data/RAMS_1.0/data/test.jsonlines'

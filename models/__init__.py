@@ -2,7 +2,6 @@ import sys
 sys.path.append("../")
 import logging
 from transformers import BartConfig, BartTokenizerFast
-from tokenizers import AddedToken
 from .paie import PAIE
 from .single_prompt import BartSingleArg
 from utils import read_prompt_group

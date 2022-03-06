@@ -68,7 +68,6 @@ class BartSingleArg(BartPretrainedModel):
             start_logits = start_logits.masked_fill_(~enc_mask_ids[i:i+1].repeat(len(start_prompt_query),1).bool(), -20)
             end_logits = end_logits.masked_fill_(~enc_mask_ids[i:i+1].repeat(len(start_prompt_query),1).bool(), -20)
 
-            # ipdb.set_trace()
             if start_position_ids is not None and end_position_ids is not None:
                 start_logsoftmax = self.logsoft_fct(start_logits)
                 end_logsoftmax = self.logsoft_fct(end_logits)
@@ -76,7 +75,6 @@ class BartSingleArg(BartPretrainedModel):
                 end_loss = -torch.mean(torch.sum(end_position_ids[i]*end_logsoftmax, dim=1), dim=0)
                 total_loss.append((start_loss + end_loss) / 2)
 
-            # ipdb.set_trace()
             output = dict()
             for j, arg_role in enumerate(arg_list[i]):
                 start_logits_list, end_logits_list = [start_logits[j]], [end_logits[j]]

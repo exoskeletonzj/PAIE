@@ -7,6 +7,10 @@ import re
 import string
 
 
+EXTERNAL_TOKENS = ['<t>', '</t>']
+_PREDEFINED_QUERY_TEMPLATE = "Argument: {arg:}. Trigger: {trigger:} "
+
+
 def set_seed(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -65,6 +69,33 @@ def _normalize_answer(s):
         return text.lower()
     s_normalized = white_space_fix(remove_articles(remove_punc(lower(s))))
     return s_normalized
+
+
+def get_best_span(start_logit, end_logit, old_tok_to_new_tok_index, max_span_length):
+    # time consuming
+    best_score = start_logit[0] + end_logit[0]
+    best_answer_span = (0, 0)
+    context_length = len(old_tok_to_new_tok_index)
+
+    for start in range(context_length):
+        for end in range(start+1, min(context_length, start+max_span_length+1)):
+            start_index = old_tok_to_new_tok_index[start][0] # use start token idx
+            end_index = old_tok_to_new_tok_index[end-1][1] 
+
+            score = start_logit[start_index] + end_logit[end_index]
+            answer_span = (start_index, end_index)
+            if score > best_score:
+                best_score = score
+                best_answer_span = answer_span
+
+    return best_answer_span
+
+
+def get_best_span_simple(start_logit, end_logit):
+    # simple constraint version
+    _, s_idx = torch.max(start_logit, dim=0)
+    _, e_idx = torch.max(end_logit[s_idx:], dim=0)
+    return [s_idx, s_idx+e_idx]
 
 
 def get_sentence_idx(first_word_locs, word_loc):

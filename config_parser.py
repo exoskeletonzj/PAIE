@@ -12,7 +12,6 @@ def get_args_parser():
 
     parser.add_argument("--output_dir", default='./outputs_res', type=str)
     
-    parser.add_argument("--pad_token", default=1, type=int)
     parser.add_argument("--pad_mask_token", default=0, type=int)
     parser.add_argument("--device", default='cuda', type=str)
     parser.add_argument("--max_enc_seq_length", default=500, type=int)
@@ -33,18 +32,15 @@ def get_args_parser():
     parser.add_argument('--eval_steps', default=500, type=int)
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--th_delta', default=.0, type=float)
-    parser.add_argument('--use_cache', default=False, action="store_true")
 
     # Window size for document level dset (rams)
     parser.add_argument("--window_size", default=250, type=int)
 
     # paie setting
-    parser.add_argument('--matching_method_train', default="max", choices=["naive", "max", 'accurate'], type=str)
+    parser.add_argument('--matching_method_train', default="max", choices=["max", 'accurate'], type=str)
     parser.add_argument('--matching_method', default="bipartite", choices=["no_bipartite", "bipartite"], type=str)
 
     # input text setting
-    parser.add_argument('--context_template', default="with_trigger_sp", 
-                        choices=["ori", "with_trigger_sp"],type=str)
     parser.add_argument('--query_template', default="arg_prompt", 
                         choices=["arg_trigger", "arg_event", "argonly", "arg_prompt"],type=str)
 

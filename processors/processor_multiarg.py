@@ -1,18 +1,13 @@
 import os
 import re
-import ipdb
+import sys
+sys.path.append("../")
 import torch
 import numpy as np
 
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
-from .processor_base import DSET_processor
-
-
-_PREDEFINED_QUERY_TEMPLATE = {
-    "arg_trigger": "Argument: {arg:}. Trigger: {trigger:} ",
-    "arg_event": "Argument: {arg:}. Event: {event_type:} ",
-    "argonly": "{arg:}",
-}
+from torch.utils.data import Dataset
+from processors.processor_base import DSET_processor
+from utils import EXTERNAL_TOKENS, _PREDEFINED_QUERY_TEMPLATE
 
 
 class InputFeatures(object):
@@ -232,8 +227,8 @@ class MultiargProcessor(DSET_processor):
         return prompts
 
 
-    def create_dec_qury(self, arg, event_trigger, event_type):
-        dec_text = _PREDEFINED_QUERY_TEMPLATE[self.args.query_template].format(arg=arg, trigger=event_trigger, event_type=event_type)
+    def create_dec_qury(self, arg, event_trigger):
+        dec_text = _PREDEFINED_QUERY_TEMPLATE.format(arg=arg, trigger=event_trigger)
                 
         dec = self.tokenizer(dec_text)
         dec_input_ids, dec_mask_ids = dec["input_ids"], dec["attention_mask"]
@@ -256,7 +251,6 @@ class MultiargProcessor(DSET_processor):
 
         if os.environ.get("DEBUG", False): counter = [0, 0, 0]
         features = []
-        EXTERNAL_TOKENS = []
         for example_idx, example in enumerate(examples):
             example_id =example.doc_id
             sent = example.sent  
@@ -269,11 +263,7 @@ class MultiargProcessor(DSET_processor):
 
             event_args_name = [arg['role'] for arg in event_args]
             if os.environ.get("DEBUG", False): counter[2] += len(event_args_name)
-
-            if self.args.context_template == 'with_trigger_sp':
-                EXTERNAL_TOKENS = ['<t>', '</t>']
-                sent = sent[:trigger_start] + ['<t>'] + sent[trigger_start:trigger_end] + ['</t>'] + sent[trigger_end:]
-            
+            sent = sent[:trigger_start] + ['<t>'] + sent[trigger_start:trigger_end] + ['</t>'] + sent[trigger_end:]
             enc_text = " ".join(sent)
 
             # change the mapping to idx2tuple (start/end word idx)
@@ -331,7 +321,7 @@ class MultiargProcessor(DSET_processor):
                 }
 
                 if self.arg_query:
-                    arg_query = self.create_dec_qury(arg, event_trigger[0], event_type)
+                    arg_query = self.create_dec_qury(arg, event_trigger[0])
                 if self.prompt_query:
                     prompt_slots = {
                         "tok_s":list(), "tok_e":list(),
@@ -397,29 +387,3 @@ class MultiargProcessor(DSET_processor):
     def convert_features_to_dataset(self, features):
         dataset = ArgumentExtractionDataset(features)
         return dataset
-   
-
-    # def generate_dataloader(self, set_type):
-    #     assert (set_type in ['train', 'dev', 'test'])
-    #     if not os.path.exists(self.args.cache_path):
-    #         os.makedirs(self.args.cache_path)
-    #     cache_event_path = os.path.join(self.args.cache_path, "{}_events.pkl".format(set_type))
-    #     cache_feature_path = os.path.join(self.args.cache_path, "{}_features.pkl".format(set_type))
-    #     if set_type=='train':
-    #         file_path = self.args.train_file
-    #     elif set_type=='dev':
-    #         file_path = self.args.dev_file
-    #     else:
-    #         file_path = self.args.test_file
-        
-    #     examples = self.load_and_cache_examples(file_path, cache_event_path)
-    #     features = self.load_and_cache_features(examples, cache_feature_path)
-    #     dataset = self.convert_features_to_dataset(features)
-
-    #     if set_type != 'train':
-    #         dataset_sampler = SequentialSampler(dataset)
-    #     else:
-    #         dataset_sampler = RandomSampler(dataset)
-    #     dataloader = DataLoader(dataset, sampler=dataset_sampler, batch_size=self.args.batch_size, collate_fn=dataset.collate_fn)
-
-    #     return examples, features, dataloader

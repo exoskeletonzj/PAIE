@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 from transformers.models.bart.modeling_bart import BartModel, BartPretrainedModel
-from utils import hungarian_matcher
+from utils import hungarian_matcher, get_best_span, get_best_span_simple
 
 
 class PAIE(BartPretrainedModel):
@@ -15,40 +15,7 @@ class PAIE(BartPretrainedModel):
 
         self.model._init_weights(self.w_prompt_start)
         self.model._init_weights(self.w_prompt_end)
-        self.loss_fct = nn.functional.cross_entropy
-
-        self.self_attention = None
-    
-    def get_best_span(self, start_logit, end_logit, old_tok_to_new_tok_index):
-        # time consuming
-        best_score = start_logit[0] + end_logit[0]
-        best_answer_span = (0, 0)
-        context_length = len(old_tok_to_new_tok_index)
-
-        for start in range(context_length):
-            for end in range(start+1, min(context_length, start + self.config.max_span_length + 1)):
-                start_index = old_tok_to_new_tok_index[start][0] # use start token idx
-                end_index = old_tok_to_new_tok_index[end-1][1] 
-
-                score = start_logit[start_index] + end_logit[end_index]
-                answer_span = (start_index, end_index)
-                if score > best_score:
-                    best_score = score
-                    best_answer_span = answer_span
-
-        return best_answer_span
-
-    def get_best_span_simple(self, start_logit, end_logit):
-        # simple constraint version
-        s_value, s_idx = torch.max(start_logit, dim=0)
-        e_value, e_idx = torch.max(end_logit[s_idx:], dim=0)
-        return [s_idx, s_idx+e_idx]
-
-    def get_best_span_naive(self, start_logit, end_logit):
-        # no contrainted version of getting span
-        s_value, s_idx = torch.max(start_logit, dim=0)
-        e_value, e_idx = torch.max(end_logit, dim=0)
-        return [s_idx, s_idx+e_idx]
+        self.loss_fct = nn.CrossEntropyLoss(reduction='sum')
 
 
     def forward(
@@ -128,11 +95,11 @@ class PAIE(BartPretrainedModel):
                     predicted_spans = list()
                     for (start_logits, end_logits) in zip(start_logits_list, end_logits_list):
                         if self.config.matching_method_train == 'accurate':
-                            predicted_spans.append(self.get_best_span(start_logits, end_logits, old_tok_to_new_tok_index))
+                            predicted_spans.append(get_best_span(start_logits, end_logits, old_tok_to_new_tok_index, self.config.max_span_length))
                         elif self.config.matching_method_train == 'max':
-                            predicted_spans.append(self.get_best_span_simple(start_logits, end_logits))
+                            predicted_spans.append(get_best_span_simple(start_logits, end_logits))
                         else:
-                            predicted_spans.append(self.get_best_span_naive(start_logits, end_logits))
+                            raise AssertionError()
 
                     target_spans = [[s,e] for (s,e) in zip(target["span_s"], target["span_e"])]
                     if len(target_spans)<len(predicted_spans):
@@ -155,10 +122,9 @@ class PAIE(BartPretrainedModel):
                         raise AssertionError("Config param matching_method error!")
 
                     cnt += len(idx_preds)
-                    start_loss = self.loss_fct(torch.stack(start_logits_list)[idx_preds], torch.LongTensor(target["span_s"]).to(self.config.device)[idx_targets], reduction='sum')
-                    end_loss   = self.loss_fct(torch.stack(end_logits_list)[idx_preds], torch.LongTensor(target["span_e"]).to(self.config.device)[idx_targets], reduction='sum')
-             
-                    batch_loss.append((start_loss + end_loss) / 2) 
+                    start_loss = self.loss_fct(torch.stack(start_logits_list)[idx_preds], torch.LongTensor(target["span_s"]).to(self.config.device)[idx_targets])
+                    end_loss = self.loss_fct(torch.stack(end_logits_list)[idx_preds], torch.LongTensor(target["span_e"]).to(self.config.device)[idx_targets])
+                    batch_loss.append((start_loss + end_loss)/2) 
                 
             logit_lists.append(output)
             if self.training: # inside batch mean loss
@@ -168,4 +134,3 @@ class PAIE(BartPretrainedModel):
             return total_loss/len(context_outputs), logit_lists
         else:
             return [], logit_lists
-
