@@ -30,7 +30,11 @@ In this work we present PAIE: a simple, effective and low resource-required appr
 ## Preparation
 
 ### Environment
-to be finished
+To run our code, please install all the dependency packages by using the following command:
+
+```
+pip install -r requirements.txt
+```
 
 ### Data
 We conduct experiments on three common datasets: ACE05, RAMS and WIKIEVENTS.
@@ -94,12 +98,4 @@ Please cite our paper if you use PAIE in your work:
   journal={arXiv preprint arXiv:2202.12109},
   year={2022}
 }
-```
-
-## Train and evaluate the model
-After setting the data and pretrained checkpoints, simply run script with 
-```bash
-sh scripts/train_ace.sh
-sh scripts/train_rams.sh
-sh scripts/train_wikievent.sh
 ```
