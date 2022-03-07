@@ -129,10 +129,28 @@ bash ./scripts/train_wikievent_singleprompt.sh
 ```
 
 ### Manual-prompt-or-others
-to be finished
+Besides manual prompt, provide another two joint-prompt choices as described in Section 3.2 of  [our paper](https://arxiv.org/pdf/2202.12109.pdf). We concelude them in the following:
+1. (Default setting) Manual Prompt: All roles are connected manually with natural language
+2. Concatenation Prompt: To concatenate all role names belonging to one event type.
+3. Soft Prompt: Following [previous work](https://arxiv.org/abs/2104.06599) about continuous prompt, we connect different roles with learnable, role-specific pseudo tokens.
+
+Run following commands if you want to try Concatenation Prompt:
+```bash
+bash ./scripts/train_ace_concatprompt.sh
+bash ./scripts/train_rams_concatprompt.sh
+bash ./scripts/train_wikievent_concatprompt.sh
+```
+
+Run following commands if you want to try Soft Prompt:
+```bash
+bash ./scripts/train_ace_softprompt.sh
+bash ./scripts/train_rams_softprompt.sh
+bash ./scripts/train_wikievent_softprompt.sh
+```
+
 
 ### Few-shot-setting
-to be finished
+To be finished.
 
 
 ## Citation
