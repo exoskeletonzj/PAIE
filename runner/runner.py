@@ -2,12 +2,12 @@ import os
 import sys
 sys.path.append("../")
 import logging
+logger = logging.getLogger(__name__)
+
+from metric import eval_std_f1_score, eval_text_f1_score, eval_head_f1_score, show_results
+from metric import eval_score_per_type, eval_score_per_argnum, eval_score_per_role, eval_score_per_dist
 from runner.train import Trainer
 from runner.evaluate import Evaluator
-from runner.metric import eval_std_f1_score, eval_text_f1_score, eval_head_f1_score, show_results
-from runner.metric import eval_score_per_type, eval_score_per_argnum, eval_score_per_role, eval_score_per_dist
-
-logger = logging.getLogger(__name__)
 
 
 class BaseRunner:

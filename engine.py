@@ -1,8 +1,6 @@
 import os
-from sched import scheduler
 os.environ['MKL_SERVICE_FORCE_INTEL'] = "1"
 if os.environ.get('DEBUG', False): print('\033[92m'+'Running code in DEBUG mode'+'\033[0m')
-import os.path as osp
 import logging
 
 from models import build_model
@@ -40,7 +38,7 @@ def main():
     from config_parser import get_args_parser
     args = get_args_parser()
 
-    print(f"Output full path {osp.join(os.getcwd(), args.output_dir)}")
+    print(f"Output full path {os.path.join(os.getcwd(), args.output_dir)}")
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 

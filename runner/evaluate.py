@@ -1,8 +1,8 @@
 import torch
 import logging
-from utils import get_best_indexes, get_best_index
-
 logger = logging.getLogger(__name__)
+
+from utils import get_best_indexes, get_best_index
 
 
 class BaseEvaluator:

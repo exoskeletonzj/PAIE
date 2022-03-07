@@ -197,7 +197,6 @@ def check_tensor(tensor, var_name):
     print("tensor_type: {}".format(tensor.dtype))
 
 
-# FULL Evaluation Metric
 from spacy.tokens import Doc
 class WhitespaceTokenizer:
     def __init__(self, vocab):
