@@ -13,9 +13,9 @@ Event Argument Extraction](https://arxiv.org/abs/2202.12109). ACL'2022.
   * [Quick start](#quick-start)
   * [Experiments with multiple runs](#experiments-with-multiple-runs)
   * [Without bipartite loss](#without-bipartite-loss)
-  * [Joint/Single prompts](#without-bipartite-loss)
-  * [Manual/Concat/Soft prompts](#different-prompts)
-  * [Few-shot experiments](#few-shot-experiments)
+  * [Joint/Single prompts](#joint-prompt-or-not)
+  * [Manual/Concat/Soft prompts](#manual-prompt-or-others)
+  * [Few-shot setting](#few-shot-setting)
 * [Citation](#citation)
 
 ## Overview
@@ -88,6 +88,52 @@ Folders will be created automatically to store:
 3. File `best_dev_results.log`/`best_test_related_results.log`: showing prediction results of checkpoints on every sample in dev/test set.
 
 You could see hyperparameter setting in `./scripts/train_[dataset].sh` and `config_parser.py`. We give most of hyperparameters a brief explanation in `config_parser.py`.
+
+Above three scripts train models with BART-base. If you want to train models with BART-Large, please change `--model_name_or_path` from `facebook/bart-base` to `facebook/bart-large` **or** run following commands:
+```bash
+bash ./scripts/train_ace_large.sh
+bash ./scripts/train_rams_large.sh
+bash ./scripts/train_wikievent_large.sh
+```
+
+### Experiments with multiple runs
+
+Table.3 of [our paper](https://arxiv.org/pdf/2202.12109.pdf) shows the fluctuation of results due to random seed and other hyperparameters (learning rate mainly). You could run experiments multiple times to get a more stable and reliable results.
+
+```bash
+for seed in 13 21 42 88 100
+do
+    for lr in 1e-5 2e-5 3e-5 5e-5
+    do
+        bash ./scripts/train_{ace|rams|wikievent}.sh $seed $lr
+    done
+done
+```
+
+Each run will take ~4h so we highly recommend you to execute above command in parallel way.
+
+### Without-bipartite-loss
+You could run PAIE without bipartite matching loss by delete the command argument `--bipartite` **or** run following commands:
+```bash
+bash ./scripts/train_ace_nobipartite.sh
+bash ./scripts/train_rams_nobipartite.sh
+bash ./scripts/train_wikievent_nobipartite.sh
+```
+
+### Joint-prompt-or-not
+Unlike multiple prompt strategy in PAIE, you could also prompt argument using template containing only one role (single prompt). Try it by changing `--model_type` from `paie` to `base` and set proper hyperparameters: `--max_span_num`, `--max_dec_seq_length` and `--th_delta`. Alternatively you could run following commands directly with hyperparameters we tuned:
+```bash
+bash ./scripts/train_ace_singleprompt.sh
+bash ./scripts/train_rams_singleprompt.sh
+bash ./scripts/train_wikievent_singleprompt.sh
+```
+
+### Manual-prompt-or-others
+to be finished
+
+### Few-shot-setting
+to be finished
+
 
 ## Citation
 Please cite our paper if you use PAIE in your work:

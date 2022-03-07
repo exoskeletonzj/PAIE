@@ -434,6 +434,9 @@ class DSET_processor:
         if set_type=='train' and self.args.keep_ratio<1.0:
             sample_num = int(len(examples)*self.args.keep_ratio)
             examples = sample(examples, sample_num)
+            logger.info("Few shot setting: keep ratio {}. Only {} training samples remained.".format(\
+                self.args.keep_ratio, len(examples))
+            )
 
         features = self.convert_examples_to_features(examples)
         dataset = self.convert_features_to_dataset(features)
