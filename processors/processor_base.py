@@ -4,6 +4,7 @@ import ipdb
 import jsonlines
 import torch
 
+from random import sample
 from itertools import chain
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 import copy                             
@@ -430,6 +431,10 @@ class DSET_processor:
             file_path = self.args.test_file
         
         examples = self.create_example(file_path)
+        if set_type=='train' and self.args.keep_ratio<1.0:
+            sample_num = int(len(examples)*self.args.keep_ratio)
+            examples = sample(examples, sample_num)
+
         features = self.convert_examples_to_features(examples)
         dataset = self.convert_features_to_dataset(features)
 

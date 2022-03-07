@@ -15,9 +15,10 @@ def get_args_parser():
                         help="a file containing all prompts we use for this dataset")
     parser.add_argument("--output_dir", default='./outputs_res', type=str,
                         help="output folder storing checkpoint and all sorts of log files")
-    parser.add_argument("--keep_ratio", default=1.0, type=float)
-    parser.add_argument('--inference_only', default=False, action="store_true")
-    parser.add_argument('--inference_model_path', default="./exps/rams_exp_0306_3/42/2e-5/checkpoint", type=str)
+    parser.add_argument("--keep_ratio", default=1.0, type=float,
+                        help="The ratio of remaining traning samples. We drop the others. Used in Few-shot setting.")
+    parser.add_argument('--inference_only', default=False, action="store_true",
+                        help="The model will inference directly without training if it were set as True")
 
     parser.add_argument("--pad_mask_token", default=0, type=int,
                         help="padding token id")
@@ -49,6 +50,10 @@ def get_args_parser():
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument("--device", default='cuda', type=str)
 
+
+    # setting only for the situation when inference_only
+    parser.add_argument('--inference_model_path', default="./exps/rams_exp_0306_3/42/2e-5/checkpoint", type=str,
+                        help="The path of checkpoint used for inference.")
     # setting only for base model.
     parser.add_argument("--max_dec_seq_length", default=20, type=int,
                         help="maximum length for single prompt")
