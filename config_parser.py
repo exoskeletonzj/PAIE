@@ -15,6 +15,9 @@ def get_args_parser():
                         help="a file containing all prompts we use for this dataset")
     parser.add_argument("--output_dir", default='./outputs_res', type=str,
                         help="output folder storing checkpoint and all sorts of log files")
+    parser.add_argument("--keep_ratio", default=1.0, type=float)
+    parser.add_argument('--inference_only', default=False, action="store_true")
+    parser.add_argument('--inference_model_path', default="./exps/rams_exp_0306_3/42/2e-5/checkpoint", type=str)
 
     parser.add_argument("--pad_mask_token", default=0, type=int,
                         help="padding token id")

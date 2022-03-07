@@ -38,15 +38,21 @@ def main():
     from config_parser import get_args_parser
     args = get_args_parser()
 
-    print(f"Output full path {os.path.join(os.getcwd(), args.output_dir)}")
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    if not args.inference_only:
+        print(f"Output full path {os.path.join(os.getcwd(), args.output_dir)}")
+        if not os.path.exists(args.output_dir):
+            os.makedirs(args.output_dir)
 
-    logging.basicConfig(
-        filename=os.path.join(args.output_dir, "log.txt"), \
-        format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', \
-        datefmt = '%m/%d/%Y %H:%M:%S', level = logging.INFO
-        )
+        logging.basicConfig(
+            filename=os.path.join(args.output_dir, "log.txt"), \
+            format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', \
+            datefmt='%m/%d/%Y %H:%M:%S', level = logging.INFO
+            )
+    else:
+        logging.basicConfig(
+            format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', \
+            datefmt = '%m/%d/%Y %H:%M:%S', level = logging.INFO
+            )
     set_seed(args)
 
     model, tokenizer, optimizer, scheduler = build_model(args, args.model_type) 
