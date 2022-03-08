@@ -142,7 +142,7 @@ PAIE also performs well under low-annotation scenario. You could try it by set h
 ```bash
 KEEP_RATIO=0.2 bash ./scripts/train_{ace|rams|wikievent}_fewshot.sh
 ```
-
+Note you could adjust the `KEEP_RATIO` value by yourself.
 
 ## Citation
 Please cite our paper if you use PAIE in your work:
