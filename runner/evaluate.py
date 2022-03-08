@@ -80,16 +80,28 @@ class Evaluator(BaseEvaluator):
 
     
     def convert_batch_to_inputs(self, batch):
-        inputs = {
-            'enc_input_ids':  batch[0].to(self.cfg.device), 
-            'enc_mask_ids':   batch[1].to(self.cfg.device), 
-            'dec_prompt_ids':           batch[4].to(self.cfg.device),
-            'dec_prompt_mask_ids':      batch[5].to(self.cfg.device),
-            'old_tok_to_new_tok_indexs':batch[7],
-            'arg_joint_prompts':        batch[8],
-            'target_info':              None, 
-            'arg_list':       batch[9],
-        }
+        if self.cfg.model_type=="paie":
+            inputs = {
+                'enc_input_ids':  batch[0].to(self.cfg.device), 
+                'enc_mask_ids':   batch[1].to(self.cfg.device), 
+                'dec_prompt_ids':           batch[4].to(self.cfg.device),
+                'dec_prompt_mask_ids':      batch[5].to(self.cfg.device),
+                'old_tok_to_new_tok_indexs':batch[7],
+                'arg_joint_prompts':        batch[8],
+                'target_info':              None, 
+                'arg_list':       batch[9],
+            }
+        elif self.cfg.model_type=="base":
+            inputs = {
+                'enc_input_ids':  batch[0].to(self.cfg.device), 
+                'enc_mask_ids':   batch[1].to(self.cfg.device), 
+                'decoder_prompt_ids_list':      [item.to(self.cfg.device) for item in batch[2]], 
+                'decoder_prompt_mask_list': [item.to(self.cfg.device) for item in batch[3]],
+                'arg_list':       batch[9],
+                'decoder_prompt_start_positions_list': [item.to(self.cfg.device) for item in batch[12]],
+                'decoder_prompt_end_positions_list': [item.to(self.cfg.device) for item in batch[13]],
+            }
+
         named_v = {
             "arg_roles": batch[9],
             "feature_ids": batch[11],
@@ -125,7 +137,7 @@ class Evaluator(BaseEvaluator):
             feature.init_pred()
             feature.set_gt(self.cfg.model_type, self.cfg.dataset_type)
 
-        if "paie" in self.cfg.model_type:
+        if self.cfg.model_type=='paie':
             pred_list = []
             for s in range(0, len(self.record["full_start_logit_list"]), self.cfg.infer_batch_size):
                 sub_max_locs, cal_time, mask_time, score_time = get_best_indexes(self.features, self.record["feature_id_list"][s:s+self.cfg.infer_batch_size], \
@@ -141,7 +153,8 @@ class Evaluator(BaseEvaluator):
             ):
                 feature = self.features[feature_id]
                 answer_span_pred_list = get_best_index(feature, start_logit, end_logit, self.cfg.max_span_length, self.cfg.max_span_num, self.cfg.th_delta)
-                feature.add_pred(role, answer_span_pred_list, self.cfg.dataset_type)
+                for pred_span in answer_span_pred_list:
+                    feature.add_pred(role, pred_span, self.cfg.dataset_type)
 
         for metric, eval_fn in self.metric_fn_dict.items():
             perf_c, perf_i = eval_fn(self.features, self.invalid_num)

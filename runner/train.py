@@ -73,14 +73,28 @@ class Trainer(BaseTrainer):
 
     
     def convert_batch_to_inputs(self, batch):
-        inputs = {
-            'enc_input_ids':  batch[0].to(self.cfg.device), 
-            'enc_mask_ids':   batch[1].to(self.cfg.device), 
-            'dec_prompt_ids':           batch[4].to(self.cfg.device),
-            'dec_prompt_mask_ids':      batch[5].to(self.cfg.device),
-            'target_info':              batch[6], 
-            'old_tok_to_new_tok_indexs':batch[7],
-            'arg_joint_prompts':        batch[8],
-            'arg_list':       batch[9],
-        }
+        if self.cfg.model_type=="paie":
+            inputs = {
+                'enc_input_ids':  batch[0].to(self.cfg.device), 
+                'enc_mask_ids':   batch[1].to(self.cfg.device), 
+                'dec_prompt_ids':           batch[4].to(self.cfg.device),
+                'dec_prompt_mask_ids':      batch[5].to(self.cfg.device),
+                'target_info':              batch[6], 
+                'old_tok_to_new_tok_indexs':batch[7],
+                'arg_joint_prompts':        batch[8],
+                'arg_list':       batch[9],
+            }
+        elif self.cfg.model_type=="base":
+            inputs = {
+                'enc_input_ids':  batch[0].to(self.cfg.device), 
+                'enc_mask_ids':   batch[1].to(self.cfg.device), 
+                'decoder_prompt_ids_list':      [item.to(self.cfg.device) for item in batch[2]], 
+                'decoder_prompt_mask_list': [item.to(self.cfg.device) for item in batch[3]],
+                'arg_list':       batch[9],
+                'decoder_prompt_start_positions_list': [item.to(self.cfg.device) for item in batch[12]],
+                'decoder_prompt_end_positions_list': [item.to(self.cfg.device) for item in batch[13]],
+                'start_position_ids': [item.to(self.cfg.device) for item in batch[14]],
+                'end_position_ids': [item.to(self.cfg.device) for item in batch[15]],
+            }
+
         return inputs
