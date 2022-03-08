@@ -7,13 +7,13 @@ else
     LR=$2
 fi
 
-work_path=exps/wikievent/$SEED/$LR
+work_path=exps/wikievent_large/$SEED/$LR
 mkdir -p $work_path
 
 srun -p dsta --mpi=pmi2 --gres=gpu:1 -n1 --ntasks-per-node=1 --kill-on-bad-exit=1 -w SG-IDC1-10-51-2-70 python -u engine.py \
     --model_type=paie \
     --dataset_type=wikievent \
-    --model_name_or_path=facebook/bart-base \
+    --model_name_or_path=facebook/bart-large \
     --role_path=./data/dset_meta/description_wikievent.csv \
     --prompt_path=./data/prompts/prompts_wikievent_full.csv \
     --seed=$SEED \

@@ -7,7 +7,7 @@ else
     LR=$2
 fi
 
-work_path=exps/ace05_softprompt/$SEED/$LR
+work_path=exps/ace05_concat/$SEED/$LR
 mkdir -p $work_path
 
 srun -p dsta --mpi=pmi2 --gres=gpu:1 -n1 --ntasks-per-node=1 --kill-on-bad-exit=1 -w SG-IDC1-10-51-2-70 python engine.py \
@@ -15,7 +15,7 @@ srun -p dsta --mpi=pmi2 --gres=gpu:1 -n1 --ntasks-per-node=1 --kill-on-bad-exit=
     --dataset_type ace_eeqa \
     --model_name_or_path facebook/bart-base \
     --role_path ./data/dset_meta/description_ace.csv \
-    --prompt_path ./data/prompts/prompts_ace_continuous.csv \
+    --prompt_path ./data/prompts/prompts_ace_concat.csv \
     --seed $SEED \
     --output_dir $work_path  \
     --learning_rate $LR \

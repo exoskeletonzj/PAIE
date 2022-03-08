@@ -7,7 +7,7 @@ else
     LR=$2
 fi
 
-work_path=exps/wikievent/$SEED/$LR
+work_path=exps/wikievent_nobipartite/$SEED/$LR
 mkdir -p $work_path
 
 srun -p dsta --mpi=pmi2 --gres=gpu:1 -n1 --ntasks-per-node=1 --kill-on-bad-exit=1 -w SG-IDC1-10-51-2-70 python -u engine.py \
@@ -22,4 +22,3 @@ srun -p dsta --mpi=pmi2 --gres=gpu:1 -n1 --ntasks-per-node=1 --kill-on-bad-exit=
     --max_steps=20000 \
     --max_enc_seq_lengt 500 \
     --max_prompt_seq_length 80 \
-    --bipartite

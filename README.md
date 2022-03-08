@@ -77,9 +77,7 @@ data
 ### Quick start
 You could simply run PAIE with following commands: 
 ```bash
-bash ./scripts/train_ace.sh
-bash ./scripts/train_rams.sh
-bash ./scripts/train_wikievent.sh
+bash ./scripts/train_{ace|rams|wikievent}.sh
 ```
 Folders will be created automatically to store: 
 
@@ -91,9 +89,7 @@ You could see hyperparameter setting in `./scripts/train_[dataset].sh` and `conf
 
 Above three scripts train models with BART-base. If you want to train models with BART-Large, please change `--model_name_or_path` from `facebook/bart-base` to `facebook/bart-large` **or** run following commands:
 ```bash
-bash ./scripts/train_ace_large.sh
-bash ./scripts/train_rams_large.sh
-bash ./scripts/train_wikievent_large.sh
+bash ./scripts/train_{ace|rams|wikievent}_large.sh
 ```
 
 ### Experiments with multiple runs
@@ -115,17 +111,13 @@ Each run will take ~4h so we highly recommend you to execute above command in pa
 ### Without-bipartite-loss
 You could run PAIE without bipartite matching loss by delete the command argument `--bipartite` **or** run following commands:
 ```bash
-bash ./scripts/train_ace_nobipartite.sh
-bash ./scripts/train_rams_nobipartite.sh
-bash ./scripts/train_wikievent_nobipartite.sh
+bash ./scripts/train_{ace|rams|wikievent}_nobipartite.sh
 ```
 
 ### Joint-prompt-or-not
 Unlike multiple prompt strategy in PAIE, you could also prompt argument using template containing only one role (single prompt). Try it by changing `--model_type` from `paie` to `base` and set proper hyperparameters: `--max_span_num`, `--max_dec_seq_length` and `--th_delta`. Alternatively you could run following commands directly with hyperparameters we tuned:
 ```bash
-bash ./scripts/train_ace_singleprompt.sh
-bash ./scripts/train_rams_singleprompt.sh
-bash ./scripts/train_wikievent_singleprompt.sh
+bash ./scripts/train_{ace|rams|wikievent}_singleprompt.sh
 ```
 
 ### Manual-prompt-or-others
@@ -136,21 +128,20 @@ Besides manual prompt, provide another two joint-prompt choices as described in 
 
 Run following commands if you want to try Concatenation Prompt:
 ```bash
-bash ./scripts/train_ace_concatprompt.sh
-bash ./scripts/train_rams_concatprompt.sh
-bash ./scripts/train_wikievent_concatprompt.sh
+bash ./scripts/train_{ace|rams|wikievent}_concatprompt.sh
 ```
 
 Run following commands if you want to try Soft Prompt:
 ```bash
-bash ./scripts/train_ace_softprompt.sh
-bash ./scripts/train_rams_softprompt.sh
-bash ./scripts/train_wikievent_softprompt.sh
+bash ./scripts/train_{ace|rams|wikievent}_softprompt.sh
 ```
 
 
 ### Few-shot-setting
-To be finished.
+PAIE also performs well under low-annotation scenario. You could try it by set hyperparameters `--keep_ratio` to a number between 0 to 1, which controls the resampling rate from the original training examples. Simply you could also run scripts below:
+```bash
+KEEP_RATIO=0.2 bash ./scripts/train_{ace|rams|wikievent}_fewshot.sh
+```
 
 
 ## Citation
