@@ -13,7 +13,7 @@ _DATASET_DIR = {
         "train_file": './data/RAMS_1.0/data/train.jsonlines',
         "dev_file": './data/RAMS_1.0/data/dev.jsonlines',
         "test_file": './data/RAMS_1.0/data/test.jsonlines',
-        "max_span_num_file": "./data/dset_meta/role_num_ace.json",
+        "max_span_num_file": "./data/dset_meta/role_num_rams.json",
     },
     "wikievent":{
         "train_file": './data/WikiEvent/train.jsonl',
