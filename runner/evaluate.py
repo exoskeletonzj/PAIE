@@ -152,7 +152,10 @@ class Evaluator(BaseEvaluator):
                 self.record["feature_id_list"], self.record["role_list"], self.record["full_start_logit_list"], self.record["full_end_logit_list"]
             ):
                 feature = self.features[feature_id]
-                answer_span_pred_list = get_best_index(feature, start_logit, end_logit, self.cfg.max_span_length, self.cfg.max_span_num, self.cfg.th_delta)
+                answer_span_pred_list = get_best_index(feature, start_logit, end_logit, \
+                    max_span_length=self.cfg.max_span_length, 
+                    max_span_num=int(self.cfg.max_span_num_dict[feature.event_type][role]), 
+                    delta=self.cfg.th_delta)
                 for pred_span in answer_span_pred_list:
                     feature.add_pred(role, pred_span, self.cfg.dataset_type)
 
