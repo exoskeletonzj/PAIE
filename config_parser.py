@@ -70,4 +70,7 @@ def get_args_parser():
                         help="whether use bipartite matching loss during training or not.")
       
     args = parser.parse_args()
+
+    if args.inference_only:
+        args.output_dir = "/".join(args.inference_model_path.split("/")[:-1])
     return args

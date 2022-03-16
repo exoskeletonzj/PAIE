@@ -111,8 +111,8 @@ class Runner(BaseRunner):
 
         self.metric_fn_dict = {
             "span": eval_std_f1_score,
-            # "text": eval_text_f1_score,
-            # "head": eval_head_f1_score,
+            "text": eval_text_f1_score,
+            "head": eval_head_f1_score,
         }
         self.dev_evaluator.metric_fn_dict = self.metric_fn_dict
         self.test_evaluator.metric_fn_dict = self.metric_fn_dict
@@ -141,7 +141,7 @@ class Runner(BaseRunner):
             {"test related best score": f"P: {test_c['precision']} R: {test_c['recall']} f1: {test_c['f1']}", "global step": global_step}
         )
         show_results(self.dev_features, os.path.join(self.cfg.output_dir, f'best_dev_results.log'), 
-            {"dev best score": f"P: {dev_c['precision']} R: {dev_c['precision']} f1: {dev_c['f1']}", "global step": global_step}
+            {"dev best score": f"P: {dev_c['precision']} R: {dev_c['recall']} f1: {dev_c['f1']}", "global step": global_step}
         )
         eval_score_per_type(self.test_features, self.metric_fn_dict["span"], 
             os.path.join(self.cfg.output_dir, f'results_per_type.txt'), 

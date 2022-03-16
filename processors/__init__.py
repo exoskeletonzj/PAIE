@@ -31,8 +31,9 @@ def build_processor(args, tokenizer):
     args.dev_file = _DATASET_DIR[args.dataset_type]['dev_file']
     args.test_file = _DATASET_DIR[args.dataset_type]['test_file']
 
-    with open(_DATASET_DIR[args.dataset_type]['max_span_num_file']) as f:
-        args.max_span_num_dict = json.load(f)
+    if args.model_type=="base":
+        with open(_DATASET_DIR[args.dataset_type]['max_span_num_file']) as f:
+            args.max_span_num_dict = json.load(f)
 
     processor = MultiargProcessor(args, tokenizer)
     return processor

@@ -274,7 +274,8 @@ def eval_score_per_dist(features, examples, eval_fn, output_file):
         if isinstance(valid_range, int):
             valid_range = [valid_range]
         split_feature = copy.deepcopy(feature)
-        trigger_loc = get_sentence_idx(first_word_locs, feature.event_trigger[1][0])
+        trigger_start, offset = feature.event_trigger[1][0], split_feature.event_trigger[2]
+        trigger_loc = get_sentence_idx(first_word_locs, trigger_start+offset)
 
         for role in split_feature.target_info:
             delete_idx_list = list()
