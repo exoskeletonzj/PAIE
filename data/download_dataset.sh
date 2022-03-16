@@ -1,7 +1,17 @@
  
 #!/bin/bash
 CURDIR=$(pwd)
-echo $CURDIR
+if [ -d $CURDIR/RAMS_1.0 ]
+then 
+rm -Rf $CURDIR/RAMS_1.0
+fi
+
+if [ -d $CURDIR/WikiEvent ]  
+then    
+	rm -Rf $CURDIR/WikiEvent
+fi
+
+
 if [[ "$CURDIR" =~ "PAIE/data" ]]
 then
 	echo "please run this script under the root dir of the project, eg directory PAIE"
