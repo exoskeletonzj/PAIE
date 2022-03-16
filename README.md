@@ -39,10 +39,10 @@ pip install -r requirements.txt
 ### Data
 We conduct experiments on three common datasets: ACE05, RAMS and WIKIEVENTS.
 - ACE05: This dataset is not freely available. Access from [LDC](https://catalog.ldc.upenn.edu/LDC2006T06) and preprocessing following [EEQA (2020'EMNLP)](https://github.com/xinyadu/eeqa/tree/master/proc).
-- RAMS / WIKIEVENTS: We write a script for you for data processing. Run the following commands:
+- RAMS / WIKIEVENTS: We write a script for you for data processing. Run the following commands in the root directory of the repo.
 
 ```bash
-bash ./download_dataset.sh
+bash ./data/download_dataset.sh
 ```  
 
 Please make sure your data folder structure as below.
