@@ -21,7 +21,7 @@ mv ./RAMS_1.0 ./data/
 # Download WIKIEVENTS
 WIKIDIR=./data/WikiEvent/data/
 mkdir -p $WIKIDIR
-wget -c -P $WIKIDIR　 https://gen-arg-data.s3.us-east-2.amazonaws.com/wikievents/data/train.jsonl
+wget -c -P $WIKIDIR  https://gen-arg-data.s3.us-east-2.amazonaws.com/wikievents/data/train.jsonl
 wget -c -P $WIKIDIR  https://gen-arg-data.s3.us-east-2.amazonaws.com/wikievents/data/dev.jsonl
 wget -c -P $WIKIDIR  https://gen-arg-data.s3.us-east-2.amazonaws.com/wikievents/data/test.jsonl
 tree data
